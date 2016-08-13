@@ -1,0 +1,7 @@
+.idea/misc.xml
+.idea/workspace.xml
+devenv/
+*.egg-info
+*.pyo
+*.pyc
+.idea/

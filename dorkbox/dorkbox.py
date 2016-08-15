@@ -165,7 +165,7 @@ class Repository(object):
 
     @classmethod
     def _align_client_ref_to_master(git, dorkbox_client_id):
-       git.cmd('update-ref', "refs/heads/{}".format(dorkbox_client_id), 'master')
+       return git.cmd('update-ref', "refs/heads/{}".format(dorkbox_client_id), 'master')
 
 
 #   def self.sync_all_tracked

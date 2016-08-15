@@ -8,7 +8,8 @@ setup(
     license='Apache License 2.0',
     long_description="Stupid git-based file synchronized",
     install_requires=[
-        "configobj"
+        "configobj",
+        "filelock"
     ],
     entry_points={
         "console_scripts": [

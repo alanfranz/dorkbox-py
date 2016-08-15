@@ -158,14 +158,14 @@ class Repository(object):
             cfg.write()
 
     @classmethod
-    def configure_client_id(git)
+    def configure_client_id(git):
       dorkbox_client_id = 'dorkbox-' + gethostname() + "-" + "".join(choice(string.ascii_lowercase + string.digits) for _ in range(5))
       git.cmd('config', '--local', 'dorkbox.client-id', dorkbox_client_id)
       return dorkbox_client_id
 
     @classmethod
     def _align_client_ref_to_master(git, dorkbox_client_id):
-       git.cmd('update-ref', "refs/heads/#{dorkbox_client_id}", 'master')
+       git.cmd('update-ref', "refs/heads/{}".format(dorkbox_client_id), 'master')
 
 
 #   def self.sync_all_tracked

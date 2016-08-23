@@ -43,6 +43,7 @@ class Git(object):
 
 class Repository(object):
     _logger = logging.getLogger("Repository")
+    _track_lock = FileLock(DORKBOX_CONFIG_LOCK)
 
     @classmethod
     def create_new(cls, local_directory, remote_url):
@@ -102,7 +103,7 @@ class Repository(object):
         self._conflict_string = join(abs_local_directory, CONFLICT_STRING)
         self.client_id = self._git.cmd("config", "--local", "--get", "dorkbox.client-id").strip()
         self._sync_lock = FileLock(join(self.localdir, LOCKFILE_NAME))
-        self._track_lock = FileLock(DORKBOX_CONFIG_LOCK)
+
 
     def sync(self):
         with self._sync_lock.acquire(timeout=60):
@@ -158,31 +159,31 @@ class Repository(object):
             cfg.write()
 
     @classmethod
-    def configure_client_id(git):
+    def configure_client_id(cls, git):
       dorkbox_client_id = 'dorkbox-' + gethostname() + "-" + "".join(choice(string.ascii_lowercase + string.digits) for _ in range(5))
       git.cmd('config', '--local', 'dorkbox.client-id', dorkbox_client_id)
       return dorkbox_client_id
 
     @classmethod
-    def _align_client_ref_to_master(git, dorkbox_client_id):
+    def _align_client_ref_to_master(cls, git, dorkbox_client_id):
        return git.cmd('update-ref', "refs/heads/{}".format(dorkbox_client_id), 'master')
 
 
-#   def self.sync_all_tracked
-#     begin
-#       cfg = YAML.load_file(DORKBOX_CONFIG_PATH)
-#     rescue Errno::ENOENT
-#       return
-#     end
-#     # TODO: don't crash if one syncing fails!
-#     cfg[:track].each { |d|
-#       begin
-#         Repository.new(d).sync()
-#       rescue
-#         log "Error while syncing repository #{d}"
-#       end
-#     }
-#   end
+    @classmethod
+    def sync_all_tracked(cls):
+        with cls._track_lock.acquire(timeout=60):
+            try:
+                cfg = ConfigObj(DORKBOX_CONFIG_PATH, unrepr=True, write_empty_values=True)
+            except FileNotFoundError as e:
+                # TODO: check whether it really is meaningful with configobj
+                cls._logger.debug("file not found while opening dorkbox config file", e)
+                for localdir in cfg.get("track", []):
+                    try:
+                        repo = Repository(localdir)
+                        repo.sync()
+                    except Exception as e:
+                        cls._logger.exception("Error while syncing %s", localdir)
+
 #
 #   def self.enable_dorkbox_cronjob(executable=File.join(File.dirname(File.expand_path(__FILE__)), '..', 'bin', 'dorkbox'))
 #

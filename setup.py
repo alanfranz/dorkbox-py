@@ -11,9 +11,11 @@ setup(
         "configobj",
         "filelock"
     ],
+    zip_safe=False,
     entry_points={
         "console_scripts": [
-            "unit=unittest.__main__:main"
+            "unit=unittest.__main__:main",
+            "dorkbox=dorkbox.dorkbox:cmdline"
         ]
     }
 )

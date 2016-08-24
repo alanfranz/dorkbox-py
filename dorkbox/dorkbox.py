@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
-from os.path import expanduser, join, abspath, exists
+from os.path import expanduser, join, abspath, exists, dirname
 from os import access, R_OK, W_OK, X_OK
-from subprocess import check_output
+from subprocess import check_output, run as popen_run
 import logging
 from socket import gethostname
+from shlex import quote as shell_quote
 import string
 from random import choice
-
+from re import sub as re_sub, compile as re_compile, MULTILINE as RE_MULTILINE
+from tempfile import NamedTemporaryFile
 from configobj import ConfigObj
 from filelock import FileLock
 
@@ -182,44 +184,37 @@ class Repository(object):
                         repo = Repository(localdir)
                         repo.sync()
                     except Exception as e:
-                        cls._logger.exception("Error while syncing %s", localdir)
+                        cls._logger.exception("Error while syncing '%s'", localdir)
 
-#
-#   def self.enable_dorkbox_cronjob(executable=File.join(File.dirname(File.expand_path(__FILE__)), '..', 'bin', 'dorkbox'))
-#
-#     cron_start = "#{DORKBOX_CRONTAB_COMMENT} start\n"
-#     cron_end = "#{DORKBOX_CRONTAB_COMMENT} end\n"
-#     old_crontab = c('crontab -l 2>/dev/null || true')
-#     old_crontab.sub!(/#{cron_start}.*?#{cron_end}/m, '')
-#
-#     tmp = Tempfile.new("dorkbox-temp")
-#     if (old_crontab.size > 0) && (old_crontab[-1] != "\n")
-#       old_crontab.concat("\n")
-#     end
-#
-#     old_crontab.concat(cron_start).concat("*/5 * * * * #{Shellwords.escape(executable)} sync_all_tracked\n").concat(cron_end)
-#     tmp.puts(old_crontab)
-#     tmp.flush()
-#     `crontab #{tmp.path}`
-#     tmp.close()
-#   end
-#
-#   def self.cleanup_tracked
-#     begin
-#       cfg = YAML.load_file(DORKBOX_CONFIG_PATH)
-#     rescue Errno::ENOENT
-#       return
-#     end
-#     # TODO: check for dorkbox-enabled dir, e.g. try retrieving client id
-#     cfg[:track].select! { |d| Dir.exists?(d) }
-#     puts cfg
-#     File.open(DORKBOX_CONFIG_PATH, 'w') { |f| f.write(cfg.to_yaml) }
-#   end
-#
-#
-#   def self.test
-#     require 'dorkbox_test'
-#     MiniTest::Unit.autorun
-#   end
-#
-# end
+    @classmethod
+    def enable_dorkbox_cronjob(cls, executable=join(dirname(abspath(__file__)), "devenv", "bin", "dorkbox")):
+        cron_start = "{} start\n".format(DORKBOX_CRONTAB_COMMENT)
+        cron_end = "{} end\n".format(DORKBOX_CRONTAB_COMMENT)
+        old_crontab = popen_run(["crontab", "-l"]).stdout
+        old_crontab = re_sub(re_compile("{}.*?{}".format(cron_start, cron_end), RE_MULTILINE), "", old_crontab)
+
+        if len(old_crontab) > 0 and (old_crontab[-1] != "\n"):
+            old_crontab += "\n"
+
+        new_crontab = old_crontab + cron_start + "*/5 * * * * {}".format(shell_quote(executable) + " sync_all_tracked\n") + cron_end
+
+        with NamedTemporaryFile(prefix="dorkbox-temp", encoding="utf-8") as tmp:
+            tmp.puts(new_crontab)
+            tmp.flush()
+            check_output(["crontab", tmp.name])
+
+    @classmethod
+    def cleanup_tracked(cls):
+        cfg = ConfigObj(DORKBOX_CONFIG_PATH, unrepr=True, write_empty_values=True)
+        still_to_be_tracked = [directory for directory in cfg["track"] if exists(directory)]
+        cfg["track"] = still_to_be_tracked
+        cfg.write()
+
+    @classmethod
+    def test(cls):
+        raise NotImplementedError("not yet implemented")
+
+
+def cmdline(*args):
+    # TODO: implement
+    pass

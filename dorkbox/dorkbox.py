@@ -34,7 +34,7 @@ class Git(object):
         return ["git", "--work-tree={}".format(abs_local_directory), "--git-dir={}".format(gitdir)]
 
     def cmd(self, *args):
-        return check_output(self._git_command + list(args))
+        return check_output(self._git_command + list(args), universal_newlines=True)
 
     @classmethod
     def init(self, root_repository_dir):

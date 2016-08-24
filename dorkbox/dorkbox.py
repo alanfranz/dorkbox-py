@@ -40,7 +40,8 @@ class Git(object):
     def init(self, root_repository_dir):
         """Performs the actual 'git init' command"""
         path = abspath(root_repository_dir)
-        check_output(["git", "init", path])
+        cmd = ["git", "init", path]
+        check_output(cmd)
         return Git(path)
 
 

@@ -22,4 +22,22 @@ def connect(directory, dorkbox_remote_url):
 def sync(directory):
     dorkbox.Repository(directory).sync()
 
+@cmdline.command()
+@click.argument("directory", default=".")
+def track(directory):
+    dorkbox.Repository(directory).track()
+
+@cmdline.command()
+@click.argument("directory", default=".")
+def untrack(directory):
+    dorkbox.Repository(directory).untrack()
+
+@cmdline.command()
+def sync_all_tracked():
+    dorkbox.Repository.sync_all_tracked()
+
+@cmdline.command()
+def enable_autosync_all_tracked():
+    dorkbox.Repository.enable_dorkbox_cronjob()
+
 

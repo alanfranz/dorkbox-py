@@ -11,6 +11,7 @@ from re import sub as re_sub, compile as re_compile, MULTILINE as RE_MULTILINE
 from tempfile import NamedTemporaryFile
 from configobj import ConfigObj
 from filelock import FileLock
+import sys
 
 LOCKFILE_NAME = '.dorkbox.lock'
 CONFLICT_STRING = 'CONFLICT_MUST_MANUALLY_MERGE'
@@ -67,7 +68,7 @@ class Repository(object):
 
     @classmethod
     def configure_repository(cls, git, local_directory):
-        dorkbox_client_id = cls._configure_client_id(git)
+        dorkbox_client_id = cls.configure_client_id(git)
         cls._align_client_ref_to_master(git, dorkbox_client_id)
         git.cmd("push", "-u", "dorkbox", "master", dorkbox_client_id)
         repo = Repository(local_directory)
@@ -105,7 +106,6 @@ class Repository(object):
         self._conflict_string = join(abs_local_directory, CONFLICT_STRING)
         self.client_id = self._git.cmd("config", "--local", "--get", "dorkbox.client-id").strip()
         self._sync_lock = FileLock(join(self.localdir, LOCKFILE_NAME))
-
 
     def sync(self):
         with self._sync_lock.acquire(timeout=60):
@@ -150,7 +150,7 @@ class Repository(object):
             cfg = ConfigObj(DORKBOX_CONFIG_PATH, unrepr=True, write_empty_values=True)
             # configobj doesn't support sets natively, only lists.
             track = cfg.get("track", [])
-            track.add(self.localdir)
+            track.append(self.localdir)
             cfg["track"] = list(set(track))
             cfg.write()
 
@@ -215,6 +215,10 @@ class Repository(object):
         raise NotImplementedError("not yet implemented")
 
 
-def cmdline(*args):
-    # TODO: implement
-    pass
+def cmdline():
+    # TODO: improve this with the right library, e.g. click
+    commands = ["test", "enable_autosync_all_tracked", "sync_all_tracked", "track", "untrack", "create", "connect"]
+    command = sys.argv[1]
+    if command not in commands:
+        raise ValueError("unknown command '{}'".format(command))
+

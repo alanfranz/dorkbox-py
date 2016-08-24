@@ -9,13 +9,14 @@ setup(
     long_description="Stupid git-based file synchronized",
     install_requires=[
         "configobj",
-        "filelock"
+        "filelock",
+        "click"
     ],
     zip_safe=False,
     entry_points={
         "console_scripts": [
             "unit=unittest.__main__:main",
-            "dorkbox=dorkbox.dorkbox:cmdline"
+            "dorkbox=dorkbox.cmdline:cmdline"
         ]
     }
 )

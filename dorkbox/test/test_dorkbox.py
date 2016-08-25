@@ -6,6 +6,7 @@ from subprocess import check_call, check_output
 
 from dorkbox.dorkbox import Git, Repository, GITIGNORE
 
+
 class TestRepository(TestCase):
     def setUp(self):
         self._tmp = TemporaryDirectory()
@@ -26,8 +27,6 @@ class TestRepository(TestCase):
     def test_when_connection_new_dorkbox_repo_both_references_exist(self):
         with TemporaryDirectory() as git_repo_dir:
             check_call(["git", "init", "--bare", git_repo_dir])
-
-            first_client_name = None
 
             with TemporaryDirectory() as first_repo_dir:
                 first_repo = Repository.create_new(first_repo_dir, git_repo_dir)

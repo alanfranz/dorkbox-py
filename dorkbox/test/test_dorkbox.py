@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 from unittest import TestCase
-from tempfile import TemporaryDirectory
+
+from shutil import rmtree
+
+from os.path import join
+
+from tempfile import TemporaryDirectory, mkdtemp
 import os
 from subprocess import check_call, check_output
 
@@ -37,3 +42,44 @@ class TestRepository(TestCase):
                                                  "branch", "-a"], universal_newlines=True)
                     self.assertTrue(first_repo.client_id in all_branches)
                     self.assertTrue(second_repo.client_id in all_branches)
+
+class TestSync(TestCase):
+    def setUp(self):
+        Repository.cleanup_tracked()
+        self.remote_repo_dir = mkdtemp()
+        check_call(["git", "init", "--bare", self.remote_repo_dir])
+
+        self.first_client_dir = mkdtemp()
+        self.second_client_dir = mkdtemp()
+        self.third_client_dir = mkdtemp()
+
+        self.first_repo = Repository.create_new(self.first_client_dir, self.remote_repo_dir)
+        self.second_repo = Repository.connect_existing(self.second_client_dir, self.remote_repo_dir)
+        self.third_repo = Repository.connect_existing(self.third_client_dir, self.remote_repo_dir)
+
+    def tearDown(self):
+        rmtree(self.remote_repo_dir)
+        rmtree(self.first_client_dir)
+        rmtree(self.second_client_dir)
+        rmtree(self.third_client_dir)
+        Repository.cleanup_tracked()
+
+
+    def test_syncing_between_two_clients(self):
+        with open(join(self.first_client_dir, "something"), mode="w", encoding="ascii") as f:
+            f.write("asd")
+
+        self.first_repo.sync()
+        self.second_repo.sync()
+
+        with open(join(self.second_client_dir, "something"), mode="r", encoding="ascii") as f:
+            self.assertEquals("asd", f.read())
+
+        with open(join(self.second_client_dir, "something"), mode="a", encoding="ascii") as f:
+            f.write("xyz")
+
+        self.second_repo.sync()
+        self.first_repo.sync()
+
+        with open(join(self.first_client_dir, "something"), mode="r", encoding="ascii") as f:
+            self.assertEquals("asdxyz", f.read())

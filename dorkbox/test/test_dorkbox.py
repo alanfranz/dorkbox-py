@@ -5,11 +5,11 @@ from shutil import rmtree
 
 from os.path import join
 
-from tempfile import TemporaryDirectory, mkdtemp
+from tempfile import TemporaryDirectory, mkdtemp, NamedTemporaryFile
 import os, sys
-from subprocess import check_call, check_output, DEVNULL, run
+from subprocess import check_call, check_output, DEVNULL, run, CalledProcessError
 
-from dorkbox.dorkbox import Git, Repository, GITIGNORE, CONFLICT_STRING, SyncError
+from dorkbox.dorkbox import Git, Repository, GITIGNORE, CONFLICT_STRING, SyncError, DORKBOX_CRONTAB_COMMENT
 import logging
 
 from os.path import exists
@@ -180,21 +180,54 @@ class TestSync(TestCase):
         self.assertFalse(exists(join(self.second_client_dir, "something")))
 
 
+class TestCrontabManipulation(TestCase):
+    def setUp(self):
+        try:
+            self.save_user_crontab = check_output(["crontab", "-l"], universal_newlines=True, stderr=DEVNULL)
+        except CalledProcessError:
+            self.save_user_crontab = None
 
-# def test_untracked_repository_doesnt_get_synced
-#     @second_repo.untrack()
+        # now remove current crontab
+        run(["crontab", "-r"], universal_newlines=True, stderr=DEVNULL)
+
+    def tearDown(self):
+        if self.save_user_crontab is None:
+            run(["crontab", "-r"], universal_newlines=True, stderr=DEVNULL)
+            return
+
+        with NamedTemporaryFile() as f:
+            f.write(self.save_user_crontab)
+            f.flush()
+            check_call(["crontab", f.name])
+
+
+    def test_dorkbox_cron_enabled_when_crontab_empty(self):
+        Repository.enable_dorkbox_cronjob()
+        current_crontab = check_output(["crontab", "-l"], universal_newlines=True)
+        self.assertEqual(2, current_crontab.count(DORKBOX_CRONTAB_COMMENT))
+
+    def test_dorkbox_cron_is_not_duplicated_if_already_there(self):
+        Repository.enable_dorkbox_cronjob()
+        Repository.enable_dorkbox_cronjob("asdasd")
+        current_crontab = check_output(["crontab", "-l"], universal_newlines=True)
+        self.assertEqual(2, current_crontab.count(DORKBOX_CRONTAB_COMMENT))
+
+
 #
-#     Dir.chdir( @ first_client_dir) {
-#         File.open("something", "w")
-#     { | f | f.write("asd")}
-#     Dorkbox::sync_all_tracked()
-#     }
+# def test_dorkbox_cron_is_not_duplicated_if_already_there
+#     Dorkbox::enable_dorkbox_cronjob()
+#     Dorkbox::enable_dorkbox_cronjob('asdasd')
+#     v = c('crontab -l')
+#     assert (v.scan( /  # {DORKBOX_CRONTAB_COMMENT}/).size == 2)
+#             end
 #
-#     Dir.chdir( @ second_client_dir) {
-#     assert (!File.exists?("something"))
 #
-#     }
+# def test_dorkbox_cron_is_updated_if_already_there
+#     Dorkbox::enable_dorkbox_cronjob()
+#     Dorkbox::enable_dorkbox_cronjob('asdasd')
+#     v = c('crontab -l')
+#     assert (v.scan( /
+#     # {DORKBOX_CRONTAB_COMMENT}/).size == 2)
+#     assert (v.scan( / asdasd /).size == 1)
 #     end
-
-
-
+#     end

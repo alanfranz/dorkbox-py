@@ -203,16 +203,17 @@ class Repository(object):
     def enable_dorkbox_cronjob(cls, executable=join(dirname(abspath(__file__)), "devenv", "bin", "dorkbox")):
         cron_start = "{} start\n".format(DORKBOX_CRONTAB_COMMENT)
         cron_end = "{} end\n".format(DORKBOX_CRONTAB_COMMENT)
-        old_crontab = popen_run(["crontab", "-l"]).stdout
-        old_crontab = re_sub(re_compile("{}.*?{}".format(cron_start, cron_end), RE_MULTILINE), "", old_crontab)
+        old_crontab = popen_run(["crontab", "-l"], universal_newlines=True, stdout=PIPE).stdout
+        cron_pattern = re_compile("{}.*?{}".format(cron_start, cron_end), RE_MULTILINE)
+        old_crontab = cron_pattern.sub("", old_crontab)
 
         if len(old_crontab) > 0 and (old_crontab[-1] != "\n"):
             old_crontab += "\n"
 
         new_crontab = old_crontab + cron_start + "*/5 * * * * {}".format(shell_quote(executable) + " sync_all_tracked\n") + cron_end
 
-        with NamedTemporaryFile(prefix="dorkbox-temp", encoding="utf-8") as tmp:
-            tmp.puts(new_crontab)
+        with NamedTemporaryFile(prefix="dorkbox-temp", mode="w+", encoding="utf-8") as tmp:
+            tmp.write(new_crontab)
             tmp.flush()
             check_output(["crontab", tmp.name])
 

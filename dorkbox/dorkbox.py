@@ -114,7 +114,6 @@ class Repository(object):
         self._sync_lock = FileLock(join(self.localdir, LOCKFILE_NAME))
 
     def sync(self):
-        # TODO: probably we should throw an error if sync does not succeed.
         # TODO: probably we should sleep a little between merging attempts
         with self._sync_lock.acquire(timeout=60):
             if exists(CONFLICT_STRING):

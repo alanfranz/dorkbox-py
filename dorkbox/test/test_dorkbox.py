@@ -164,3 +164,37 @@ class TestSync(TestCase):
         with open(join(self.first_client_dir, "something"), mode="r", encoding="ascii") as f:
             self.assertEqual("merged", f.read())
 
+    def test_multiple_sync_without_changes_doesnt_crash(self):
+        self.second_repo.sync()
+        self.second_repo.sync()
+        self.second_repo.sync()
+
+    def test_untracked_repository_doesnt_get_synced_by_sync_all_tracked(self):
+        self.second_repo.untrack()
+
+        with open(join(self.first_client_dir, "something"), mode="w", encoding="ascii") as f:
+            f.write("asd")
+
+        Repository.sync_all_tracked()
+
+        self.assertFalse(exists(join(self.second_client_dir, "something")))
+
+
+
+# def test_untracked_repository_doesnt_get_synced
+#     @second_repo.untrack()
+#
+#     Dir.chdir( @ first_client_dir) {
+#         File.open("something", "w")
+#     { | f | f.write("asd")}
+#     Dorkbox::sync_all_tracked()
+#     }
+#
+#     Dir.chdir( @ second_client_dir) {
+#     assert (!File.exists?("something"))
+#
+#     }
+#     end
+
+
+

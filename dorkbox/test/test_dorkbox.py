@@ -7,10 +7,12 @@ from os.path import join
 
 from tempfile import TemporaryDirectory, mkdtemp
 import os, sys
-from subprocess import check_call, check_output
+from subprocess import check_call, check_output, DEVNULL, run
 
-from dorkbox.dorkbox import Git, Repository, GITIGNORE
+from dorkbox.dorkbox import Git, Repository, GITIGNORE, CONFLICT_STRING, SyncError
 import logging
+
+from os.path import exists
 
 logging.basicConfig(stream= sys.stderr, level=logging.DEBUG)
 
@@ -130,3 +132,78 @@ class TestSync(TestCase):
             # will result in a sync conflict
             self.assertEqual("xyzxyz", f.read())
 
+    def test_conflicted_client_doesnt_sync_until_fixed(self):
+        with open(join(self.first_client_dir, "something"), mode="w", encoding="ascii") as f:
+            f.write("asd")
+
+        self.first_repo.sync()
+
+        with open(join(self.second_client_dir, "something"), mode="w", encoding="ascii") as f:
+            f.write("mashup")
+
+        try:
+            self.second_repo.sync()
+            self.fail("should have launched exception")
+        except SyncError:
+            pass
+
+        self.assertTrue(exists(join(self.second_client_dir, CONFLICT_STRING)))
+
+        run(["git", "--work-tree={}".format(self.second_client_dir),
+                    "--git-dir={}".format(join(self.second_client_dir, ".git")), "merge", "dorkbox/master"], stderr=DEVNULL)
+
+        with open(join(self.second_client_dir, "something"), mode="w", encoding="ascii") as f:
+            f.write("merged")
+
+        check_call(["git", "--work-tree={}".format(self.second_client_dir), "--git-dir={}".format(join(self.second_client_dir, ".git")), "commit", "-am", "solved conflict"], stderr=DEVNULL)
+        os.unlink(join(self.second_client_dir, CONFLICT_STRING))
+
+        self.second_repo.sync()
+        self.first_repo.sync()
+
+        with open(join(self.first_client_dir, "something"), mode="r", encoding="ascii") as f:
+            self.assertEqual("merged", f.read())
+
+
+
+
+
+
+# def test_conflicted_client_doesnt_sync_until_fixed
+#     Dir.chdir(@first_client_dir) {
+#       File.open("something", "w") { |f| f.write("asd") }
+#       @first_repo.sync()
+#     }
+#
+#     Dir.chdir(@second_client_dir) {
+#       File.open("something", "w") { |f| f.write("whatsup") }
+#       begin
+#         @second_repo.sync()
+#       rescue StandardError => e
+#       end
+#
+#       assert(File.exists? Dorkbox::CONFLICT_STRING)
+#
+#     }
+#
+#     Dir.chdir(@second_client_dir) {
+#       begin
+#         @second_repo.sync()
+#         flunk('should have raised exception')
+#       rescue StandardError => e
+#       end
+#     }
+#
+#     Dir.chdir(@second_client_dir) {
+#       `git merge dorkbox/master || true`
+#       File.open("something", "w") { |f| f.write("merged") }
+#       `git commit  -am 'merged'`
+#       File.delete(Dorkbox::CONFLICT_STRING)
+#       @second_repo.sync()
+#     }
+#
+#     Dir.chdir(@first_client_dir) {
+#       @first_repo.sync()
+#       File.open("something") { |f| assert_equal("merged", f.read()) }
+#     }
+#   end

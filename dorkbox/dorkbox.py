@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from os.path import expanduser, join, abspath, exists, dirname
 from os import access, R_OK, W_OK, X_OK
-from subprocess import check_output, run as popen_run
+from subprocess import check_output, run as popen_run, PIPE
 import logging
 from socket import gethostname
 from shlex import quote as shell_quote
@@ -20,6 +20,11 @@ DORKBOX_CONFIG_PATH = join(expanduser("~"), ".dorkbox.conf")
 DORKBOX_CONFIG_LOCK = DORKBOX_CONFIG_PATH + '.lock'
 DORKBOX_CRONTAB_COMMENT = '# dorkbox sync cronjob'
 
+class SyncError(Exception):
+    def __init__(self, directory):
+        super().__init__("Could not sync '{}'".format(directory))
+
+
 
 class Git(object):
     def __init__(self, root_repository_dir):
@@ -34,7 +39,7 @@ class Git(object):
         return ["git", "--work-tree={}".format(abs_local_directory), "--git-dir={}".format(gitdir)]
 
     def cmd(self, *args):
-        return check_output(self._git_command + list(args), universal_newlines=True)
+        return check_output(self._git_command + list(args), universal_newlines=True, stderr=PIPE)
 
     @classmethod
     def init(self, root_repository_dir):
@@ -109,13 +114,16 @@ class Repository(object):
         self._sync_lock = FileLock(join(self.localdir, LOCKFILE_NAME))
 
     def sync(self):
+        # TODO: probably we should throw an error if sync does not succeed.
+        # TODO: probably we should sleep a little between merging attempts
         with self._sync_lock.acquire(timeout=60):
             if exists(CONFLICT_STRING):
                 self._logger.info("Conflict found, not syncing")
                 raise ValueError("Conflict found, not syncing")
 
             # begin
-            for _ in range(0, 5):
+            for attempt in range(0, 5):
+                self._logger.debug("Merge attempt n. %s", attempt)
                 self._git.cmd("fetch", "--all")
                 self._git.cmd("add", "-A")
                 any_change = self._git.cmd("diff", "--staged").strip()
@@ -126,7 +134,8 @@ class Repository(object):
                 try:
                     self._git.cmd("merge", "--no-edit", "dorkbox/master")
                 except Exception as e:
-                    self._logger.exception("Error while merging")
+                    self._logger.exception("Error while merging, aborting merge")
+                    self._git.cmd("merge", "--abort")
                     continue
 
                 self._align_client_ref_to_master(self._git, self.client_id)
@@ -142,7 +151,7 @@ class Repository(object):
                 self._logger.error("Couldn't succeed at merging or pushing back our changes, probably we've got a conflict")
                 with open(self._conflict_string, "w") as f:
                     pass
-                return
+                raise SyncError(self.localdir)
 
             self._logger.info("Sync succeeded")
 

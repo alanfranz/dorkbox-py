@@ -212,22 +212,9 @@ class TestCrontabManipulation(TestCase):
         current_crontab = check_output(["crontab", "-l"], universal_newlines=True)
         self.assertEqual(2, current_crontab.count(DORKBOX_CRONTAB_COMMENT))
 
+    def test_dorkbox_cron_is_updated_if_already_there(self):
+        Repository.enable_dorkbox_cronjob()
+        Repository.enable_dorkbox_cronjob("asdasd")
+        current_crontab = check_output(["crontab", "-l"], universal_newlines=True)
+        self.assertEqual(1, current_crontab.count("asdasd"))
 
-#
-# def test_dorkbox_cron_is_not_duplicated_if_already_there
-#     Dorkbox::enable_dorkbox_cronjob()
-#     Dorkbox::enable_dorkbox_cronjob('asdasd')
-#     v = c('crontab -l')
-#     assert (v.scan( /  # {DORKBOX_CRONTAB_COMMENT}/).size == 2)
-#             end
-#
-#
-# def test_dorkbox_cron_is_updated_if_already_there
-#     Dorkbox::enable_dorkbox_cronjob()
-#     Dorkbox::enable_dorkbox_cronjob('asdasd')
-#     v = c('crontab -l')
-#     assert (v.scan( /
-#     # {DORKBOX_CRONTAB_COMMENT}/).size == 2)
-#     assert (v.scan( / asdasd /).size == 1)
-#     end
-#     end

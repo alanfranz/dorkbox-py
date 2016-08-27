@@ -7,7 +7,7 @@ from socket import gethostname
 from shlex import quote as shell_quote
 import string
 from random import choice
-from re import sub as re_sub, compile as re_compile, MULTILINE as RE_MULTILINE
+from re import sub as re_sub, compile as re_compile, DOTALL as RE_DOTALL
 from tempfile import NamedTemporaryFile
 from configobj import ConfigObj
 from filelock import FileLock
@@ -204,7 +204,7 @@ class Repository(object):
         cron_start = "{} start\n".format(DORKBOX_CRONTAB_COMMENT)
         cron_end = "{} end\n".format(DORKBOX_CRONTAB_COMMENT)
         old_crontab = popen_run(["crontab", "-l"], universal_newlines=True, stdout=PIPE).stdout
-        cron_pattern = re_compile("{}.*?{}".format(cron_start, cron_end), RE_MULTILINE)
+        cron_pattern = re_compile("{}.*?{}".format(cron_start, cron_end), RE_DOTALL)
         old_crontab = cron_pattern.sub("", old_crontab)
 
         if len(old_crontab) > 0 and (old_crontab[-1] != "\n"):

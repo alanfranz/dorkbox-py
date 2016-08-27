@@ -175,17 +175,21 @@ class Repository(object):
     @classmethod
     def sync_all_tracked(cls):
         with cls._track_lock.acquire(timeout=60):
+            cls._logger.debug("Now syncing all tracked repositories")
             try:
                 cfg = ConfigObj(DORKBOX_CONFIG_PATH, unrepr=True, write_empty_values=True)
             except FileNotFoundError as e:
                 # TODO: check whether it really is meaningful with configobj
                 cls._logger.debug("file not found while opening dorkbox config file", e)
-                for localdir in cfg.get("track", []):
-                    try:
-                        repo = Repository(localdir)
-                        repo.sync()
-                    except Exception as e:
-                        cls._logger.exception("Error while syncing '%s'", localdir)
+                return
+
+            for localdir in cfg.get("track", []):
+                try:
+                    repo = Repository(localdir)
+                    repo.sync()
+                    cls._logger.info("synced '%s'", localdir)
+                except Exception as e:
+                    cls._logger.exception("Error while syncing '%s'", localdir)
 
     @classmethod
     def enable_dorkbox_cronjob(cls, executable=join(dirname(abspath(__file__)), "devenv", "bin", "dorkbox")):

@@ -6,10 +6,13 @@ from shutil import rmtree
 from os.path import join
 
 from tempfile import TemporaryDirectory, mkdtemp
-import os
+import os, sys
 from subprocess import check_call, check_output
 
 from dorkbox.dorkbox import Git, Repository, GITIGNORE
+import logging
+
+logging.basicConfig(stream= sys.stderr, level=logging.DEBUG)
 
 
 class TestRepository(TestCase):
@@ -73,7 +76,7 @@ class TestSync(TestCase):
         self.second_repo.sync()
 
         with open(join(self.second_client_dir, "something"), mode="r", encoding="ascii") as f:
-            self.assertEquals("asd", f.read())
+            self.assertEqual("asd", f.read())
 
         with open(join(self.second_client_dir, "something"), mode="a", encoding="ascii") as f:
             f.write("xyz")
@@ -82,4 +85,26 @@ class TestSync(TestCase):
         self.first_repo.sync()
 
         with open(join(self.first_client_dir, "something"), mode="r", encoding="ascii") as f:
-            self.assertEquals("asdxyz", f.read())
+            self.assertEqual("asdxyz", f.read())
+
+    def test_tracking_between_two_clients(self):
+        with open(join(self.first_client_dir, "something"), mode="w", encoding="ascii") as f:
+            f.write("asd")
+
+        # we need to sync twice, since the first sync will send our content from 1st upstream,
+        # and the second will pull content from upstream to 2n repo
+        Repository.sync_all_tracked()
+        Repository.sync_all_tracked()
+
+        with open(join(self.second_client_dir, "something"), mode="r", encoding="ascii") as f:
+            self.assertEqual("asd", f.read())
+
+        with open(join(self.second_client_dir, "something"), mode="a", encoding="ascii") as f:
+            f.write("xyz")
+
+        # same as above
+        Repository.sync_all_tracked()
+        Repository.sync_all_tracked()
+
+        with open(join(self.first_client_dir, "something"), mode="r", encoding="ascii") as f:
+            self.assertEqual("asdxyz", f.read())

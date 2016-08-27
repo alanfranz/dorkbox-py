@@ -108,3 +108,25 @@ class TestSync(TestCase):
 
         with open(join(self.first_client_dir, "something"), mode="r", encoding="ascii") as f:
             self.assertEqual("asdxyz", f.read())
+
+    def test_all_synced_repos_are_tracked_independently(self):
+        with open(join(self.first_client_dir, "something"), mode="w", encoding="ascii") as f:
+            f.write("asd")
+
+        Repository.sync_all_tracked()
+
+        with open(join(self.first_client_dir, "something"), mode="w", encoding="ascii") as f:
+            f.write("xyzxyz")
+
+        self.first_repo.sync()
+
+        with open(join(self.second_client_dir, "something"), mode="w", encoding="ascii") as f:
+            # will result in a sync conflict for the 2nd repo
+            f.write("kkkkkk")
+
+        Repository.sync_all_tracked()
+
+        with open(join(self.third_client_dir, "something"), mode="r", encoding="ascii") as f:
+            # will result in a sync conflict
+            self.assertEqual("xyzxyz", f.read())
+

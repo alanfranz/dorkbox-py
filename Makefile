@@ -31,6 +31,8 @@ clean:
 	rm -rf tmp build dist
 	$(FIND) \( -name '*.pyc*' -o -name '*.pyo' \) -delete
 	$(FIND) -type d -name "__pycache__" -delete
+	find packaging -path '*/out/*' -delete
+	find packaging -path '*/test-logs/*' -delete
 
 distclean: clean
 	rm -rf devenv *.egg-info

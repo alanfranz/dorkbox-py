@@ -4,10 +4,11 @@
 # to delete them from our host.
 trap 'chown -R --reference /test-inside/test /test-logs/' EXIT
 
-#must import public key
 rpm --import /tmp/public.asc
 
-yum -y install /out/*.rpm
+yum -y localinstall /out/*.rpm
 
-cd /usr/local/lua/tests
-/usr/local/lua/bin/lua -e"_U=true" all.lua 2>&1 | tee /test-logs/lua.log
+git config --global user.name "testing"
+git config --global user.email "testing@example.com"
+
+/opt/foolscrate/devenv/bin/unit discover -v -s /opt/foolscrate | tee /test-logs/foolscrate.log

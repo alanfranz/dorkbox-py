@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from os.path import expanduser, join, abspath, exists, dirname
 from os import access, R_OK, W_OK, X_OK
-from subprocess import check_output, run as popen_run, PIPE
+from subprocess import check_output, PIPE, CalledProcessError
 import logging
 from socket import gethostname
 from shlex import quote as shell_quote
@@ -23,6 +23,9 @@ DORKBOX_CRONTAB_COMMENT = '# dorkbox sync cronjob'
 class SyncError(Exception):
     def __init__(self, directory):
         super().__init__("Could not sync '{}'".format(directory))
+
+
+
 
 
 
@@ -203,7 +206,10 @@ class Repository(object):
     def enable_dorkbox_cronjob(cls, executable=join(dirname(abspath(__file__)), "devenv", "bin", "dorkbox")):
         cron_start = "{} start\n".format(DORKBOX_CRONTAB_COMMENT)
         cron_end = "{} end\n".format(DORKBOX_CRONTAB_COMMENT)
-        old_crontab = popen_run(["crontab", "-l"], universal_newlines=True, stdout=PIPE).stdout
+        try:
+            old_crontab = check_output(["crontab", "-l"], universal_newlines=True)
+        except CalledProcessError:
+            old_crontab = ""
         cron_pattern = re_compile("{}.*?{}".format(cron_start, cron_end), RE_DOTALL)
         old_crontab = cron_pattern.sub("", old_crontab)
 

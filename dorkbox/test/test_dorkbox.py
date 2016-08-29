@@ -7,7 +7,7 @@ from os.path import join
 
 from tempfile import TemporaryDirectory, mkdtemp, NamedTemporaryFile
 import os, sys
-from subprocess import check_call, check_output, DEVNULL, run, CalledProcessError
+from subprocess import check_call, check_output, DEVNULL, call, CalledProcessError
 
 from dorkbox.dorkbox import Git, Repository, GITIGNORE, CONFLICT_STRING, SyncError, DORKBOX_CRONTAB_COMMENT
 import logging
@@ -149,7 +149,7 @@ class TestSync(TestCase):
 
         self.assertTrue(exists(join(self.second_client_dir, CONFLICT_STRING)))
 
-        run(["git", "--work-tree={}".format(self.second_client_dir),
+        call(["git", "--work-tree={}".format(self.second_client_dir),
                     "--git-dir={}".format(join(self.second_client_dir, ".git")), "merge", "dorkbox/master"], stderr=DEVNULL)
 
         with open(join(self.second_client_dir, "something"), mode="w", encoding="ascii") as f:
@@ -188,11 +188,11 @@ class TestCrontabManipulation(TestCase):
             self.save_user_crontab = None
 
         # now remove current crontab
-        run(["crontab", "-r"], universal_newlines=True, stderr=DEVNULL)
+        call(["crontab", "-r"], universal_newlines=True, stderr=DEVNULL)
 
     def tearDown(self):
         if self.save_user_crontab is None:
-            run(["crontab", "-r"], universal_newlines=True, stderr=DEVNULL)
+            call(["crontab", "-r"], universal_newlines=True, stderr=DEVNULL)
             return
 
         with NamedTemporaryFile() as f:

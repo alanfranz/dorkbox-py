@@ -5,3 +5,5 @@ devenv/
 *.pyo
 *.pyc
 .idea/
+packaging/**/out/
+packaging/**/test-logs/

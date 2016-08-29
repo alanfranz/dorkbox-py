@@ -9,7 +9,7 @@ from tempfile import TemporaryDirectory, mkdtemp, NamedTemporaryFile
 import os, sys
 from subprocess import check_call, check_output, DEVNULL, call, CalledProcessError
 
-from dorkbox.dorkbox import Git, Repository, GITIGNORE, CONFLICT_STRING, SyncError, DORKBOX_CRONTAB_COMMENT
+from foolscrate.foolscrate import Git, Repository, GITIGNORE, CONFLICT_STRING, SyncError, FOOLSCRATE_CRONTAB_COMMENT
 import logging
 
 from os.path import exists
@@ -34,7 +34,7 @@ class TestRepository(TestCase):
             Repository.create_new(os.path.abspath("."), gitrepodir)
             self.assertTrue(os.path.exists("./{}".format(GITIGNORE)))
 
-    def test_when_connection_new_dorkbox_repo_both_references_exist(self):
+    def test_when_connection_new_foolscrate_repo_both_references_exist(self):
         with TemporaryDirectory() as git_repo_dir:
             check_call(["git", "init", "--bare", git_repo_dir])
 
@@ -150,7 +150,7 @@ class TestSync(TestCase):
         self.assertTrue(exists(join(self.second_client_dir, CONFLICT_STRING)))
 
         call(["git", "--work-tree={}".format(self.second_client_dir),
-                    "--git-dir={}".format(join(self.second_client_dir, ".git")), "merge", "dorkbox/master"], stderr=DEVNULL)
+                    "--git-dir={}".format(join(self.second_client_dir, ".git")), "merge", "foolscrate/master"], stderr=DEVNULL)
 
         with open(join(self.second_client_dir, "something"), mode="w", encoding="ascii") as f:
             f.write("merged")
@@ -201,20 +201,20 @@ class TestCrontabManipulation(TestCase):
             check_call(["crontab", f.name])
 
 
-    def test_dorkbox_cron_enabled_when_crontab_empty(self):
-        Repository.enable_dorkbox_cronjob()
+    def test_cron_enabled_when_crontab_empty(self):
+        Repository.enable_foolscrate_cronjob()
         current_crontab = check_output(["crontab", "-l"], universal_newlines=True)
-        self.assertEqual(2, current_crontab.count(DORKBOX_CRONTAB_COMMENT))
+        self.assertEqual(2, current_crontab.count(FOOLSCRATE_CRONTAB_COMMENT))
 
-    def test_dorkbox_cron_is_not_duplicated_if_already_there(self):
-        Repository.enable_dorkbox_cronjob()
-        Repository.enable_dorkbox_cronjob("asdasd")
+    def test_cron_is_not_duplicated_if_already_there(self):
+        Repository.enable_foolscrate_cronjob()
+        Repository.enable_foolscrate_cronjob("asdasd")
         current_crontab = check_output(["crontab", "-l"], universal_newlines=True)
-        self.assertEqual(2, current_crontab.count(DORKBOX_CRONTAB_COMMENT))
+        self.assertEqual(2, current_crontab.count(FOOLSCRATE_CRONTAB_COMMENT))
 
-    def test_dorkbox_cron_is_updated_if_already_there(self):
-        Repository.enable_dorkbox_cronjob()
-        Repository.enable_dorkbox_cronjob("asdasd")
+    def test_cron_is_updated_if_already_there(self):
+        Repository.enable_foolscrate_cronjob()
+        Repository.enable_foolscrate_cronjob("asdasd")
         current_crontab = check_output(["crontab", "-l"], universal_newlines=True)
         self.assertEqual(1, current_crontab.count("asdasd"))
 

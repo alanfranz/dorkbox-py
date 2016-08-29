@@ -29,6 +29,8 @@ test: devenv
 
 clean:
 	rm -rf tmp build dist
+	$(FIND) -type d -name "__pycache__" -exec rm -rf '{}' \;
+	$(FIND) -name '*.pyc*' -o -name '*.pyo' -delete
 
 distclean: clean
 	rm -rf devenv *.egg-info

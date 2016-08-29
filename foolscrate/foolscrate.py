@@ -13,12 +13,12 @@ from configobj import ConfigObj
 from filelock import FileLock
 import sys
 
-LOCKFILE_NAME = '.dorkbox.lock'
+LOCKFILE_NAME = '.foolscrate.lock'
 CONFLICT_STRING = 'CONFLICT_MUST_MANUALLY_MERGE'
 GITIGNORE = '.gitignore'
-DORKBOX_CONFIG_PATH = join(expanduser("~"), ".dorkbox.conf")
-DORKBOX_CONFIG_LOCK = DORKBOX_CONFIG_PATH + '.lock'
-DORKBOX_CRONTAB_COMMENT = '# dorkbox sync cronjob'
+FOOLSCRATE_CONFIG_PATH = join(expanduser("~"), ".foolscrate.conf")
+FOOLSCRATE_CONFIG_LOCK = FOOLSCRATE_CONFIG_PATH + '.lock'
+FOOLSCRATE_CRONTAB_COMMENT = '# foolscrate sync cronjob'
 
 class SyncError(Exception):
     def __init__(self, directory):
@@ -55,11 +55,11 @@ class Git(object):
 
 class Repository(object):
     _logger = logging.getLogger("Repository")
-    _track_lock = FileLock(DORKBOX_CONFIG_LOCK)
+    _track_lock = FileLock(FOOLSCRATE_CONFIG_LOCK)
 
     @classmethod
     def create_new(cls, local_directory, remote_url):
-        cls._logger.info("Will create new dorkbox-enabled repository in local directory. Remote %s should exist and be empty.", remote_url)
+        cls._logger.info("Will create new foolscrate-enabled repository in local directory. Remote %s should exist and be empty.", remote_url)
 
         if exists(join(local_directory, ".git")):
             raise ValueError("Preexisting git repo found")
@@ -69,30 +69,30 @@ class Repository(object):
             f.write(CONFLICT_STRING)
             f.write(LOCKFILE_NAME)
 
-        git.cmd("remote", "add", "dorkbox", remote_url)
+        git.cmd("remote", "add", "foolscrate", remote_url)
         git.cmd("add", GITIGNORE)
-        git.cmd("commit", "-m", "enabling dorkbox")
+        git.cmd("commit", "-m", "enabling foolscrate")
 
         return cls.configure_repository(git, local_directory)
 
     @classmethod
     def configure_repository(cls, git, local_directory):
-        dorkbox_client_id = cls.configure_client_id(git)
-        cls._align_client_ref_to_master(git, dorkbox_client_id)
-        git.cmd("push", "-u", "dorkbox", "master", dorkbox_client_id)
+        client_id = cls.configure_client_id(git)
+        cls._align_client_ref_to_master(git, client_id)
+        git.cmd("push", "-u", "foolscrate", "master", client_id)
         repo = Repository(local_directory)
         repo.track()
         return repo
 
     @classmethod
     def connect_existing(cls, local_directory, remote_url):
-        cls._logger.info("Will create new git repo in local directory and connect to remote existing dorkbox repository %s", remote_url)
+        cls._logger.info("Will create new git repo in local directory and connect to remote existing foolscrate repository %s", remote_url)
 
         if exists(join(local_directory, ".git")):
             raise ValueError("Preexisting git repo found")
 
         git = Git.init(local_directory)
-        git.cmd("remote", "add", "dorkbox", remote_url)
+        git.cmd("remote", "add", "foolscrate", remote_url)
         git.cmd("fetch", "--all")
         git.cmd("checkout", "master")
 
@@ -106,14 +106,14 @@ class Repository(object):
             access(abs_local_directory, R_OK | W_OK | X_OK) and
             exists(join(abs_local_directory, ".git"))
                 ):
-            raise ValueError("{} is not a valid dorkbox-enabled repository".format(abs_local_directory))
+            raise ValueError("{} is not a valid foolscrate-enabled repository".format(abs_local_directory))
 
         # TODO: what was that alan-mayday error?
 
         self._git = Git(abs_local_directory)
         self.localdir = abs_local_directory
         self._conflict_string = join(abs_local_directory, CONFLICT_STRING)
-        self.client_id = self._git.cmd("config", "--local", "--get", "dorkbox.client-id").strip()
+        self.client_id = self._git.cmd("config", "--local", "--get", "foolscrate.client-id").strip()
         self._sync_lock = FileLock(join(self.localdir, LOCKFILE_NAME))
 
     def sync(self):
@@ -131,10 +131,10 @@ class Repository(object):
                 any_change = self._git.cmd("diff", "--staged").strip()
 
                 if any_change != "":
-                    self._git.cmd("commit", "-m", "Automatic dorkbox commit")
+                    self._git.cmd("commit", "-m", "Automatic foolscrate commit")
 
                 try:
-                    self._git.cmd("merge", "--no-edit", "dorkbox/master")
+                    self._git.cmd("merge", "--no-edit", "foolscrate/master")
                 except Exception as e:
                     self._logger.exception("Error while merging, aborting merge")
                     self._git.cmd("merge", "--abort")
@@ -143,7 +143,7 @@ class Repository(object):
                 self._align_client_ref_to_master(self._git, self.client_id)
 
                 try:
-                    self._git.cmd("push", "dorkbox", "master", self.client_id)
+                    self._git.cmd("push", "foolscrate", "master", self.client_id)
                 except Exception as e:
                     self._logger.exception("Error while pushing")
                     continue
@@ -159,7 +159,7 @@ class Repository(object):
 
     def track(self):
         with self._track_lock.acquire(timeout=60):
-            cfg = ConfigObj(DORKBOX_CONFIG_PATH, unrepr=True, write_empty_values=True)
+            cfg = ConfigObj(FOOLSCRATE_CONFIG_PATH, unrepr=True, write_empty_values=True)
             # configobj doesn't support sets natively, only lists.
             track = cfg.get("track", [])
             track.append(self.localdir)
@@ -168,19 +168,19 @@ class Repository(object):
 
     def untrack(self):
         with self._track_lock.acquire(timeout=60):
-            cfg = ConfigObj(DORKBOX_CONFIG_PATH, unrepr=True, write_empty_values=True)
+            cfg = ConfigObj(FOOLSCRATE_CONFIG_PATH, unrepr=True, write_empty_values=True)
             cfg.setdefault("track", []).remove(self.localdir)
             cfg.write()
 
     @classmethod
     def configure_client_id(cls, git):
-      dorkbox_client_id = 'dorkbox-' + gethostname() + "-" + "".join(choice(string.ascii_lowercase + string.digits) for _ in range(5))
-      git.cmd('config', '--local', 'dorkbox.client-id', dorkbox_client_id)
-      return dorkbox_client_id
+      client_id = 'foolscrate-' + gethostname() + "-" + "".join(choice(string.ascii_lowercase + string.digits) for _ in range(5))
+      git.cmd('config', '--local', 'foolscrate.client-id', client_id)
+      return client_id
 
     @classmethod
-    def _align_client_ref_to_master(cls, git, dorkbox_client_id):
-       return git.cmd('update-ref', "refs/heads/{}".format(dorkbox_client_id), 'master')
+    def _align_client_ref_to_master(cls, git, client_id):
+       return git.cmd('update-ref', "refs/heads/{}".format(client_id), 'master')
 
 
     @classmethod
@@ -188,10 +188,10 @@ class Repository(object):
         with cls._track_lock.acquire(timeout=60):
             cls._logger.debug("Now syncing all tracked repositories")
             try:
-                cfg = ConfigObj(DORKBOX_CONFIG_PATH, unrepr=True, write_empty_values=True)
+                cfg = ConfigObj(FOOLSCRATE_CONFIG_PATH, unrepr=True, write_empty_values=True)
             except FileNotFoundError as e:
                 # TODO: check whether it really is meaningful with configobj
-                cls._logger.debug("file not found while opening dorkbox config file", e)
+                cls._logger.debug("file not found while opening foolscrate config file", e)
                 return
 
             for localdir in cfg.get("track", []):
@@ -203,9 +203,9 @@ class Repository(object):
                     cls._logger.exception("Error while syncing '%s'", localdir)
 
     @classmethod
-    def enable_dorkbox_cronjob(cls, executable=join(dirname(abspath(__file__)), "devenv", "bin", "dorkbox")):
-        cron_start = "{} start\n".format(DORKBOX_CRONTAB_COMMENT)
-        cron_end = "{} end\n".format(DORKBOX_CRONTAB_COMMENT)
+    def enable_foolscrate_cronjob(cls, executable=join(dirname(abspath(__file__)), "devenv", "bin", "foolscrate")):
+        cron_start = "{} start\n".format(FOOLSCRATE_CRONTAB_COMMENT)
+        cron_end = "{} end\n".format(FOOLSCRATE_CRONTAB_COMMENT)
         try:
             old_crontab = check_output(["crontab", "-l"], universal_newlines=True)
         except CalledProcessError:
@@ -218,14 +218,14 @@ class Repository(object):
 
         new_crontab = old_crontab + cron_start + "*/5 * * * * {}".format(shell_quote(executable) + " sync_all_tracked\n") + cron_end
 
-        with NamedTemporaryFile(prefix="dorkbox-temp", mode="w+", encoding="utf-8") as tmp:
+        with NamedTemporaryFile(prefix="foolscrate-temp", mode="w+", encoding="utf-8") as tmp:
             tmp.write(new_crontab)
             tmp.flush()
             check_output(["crontab", tmp.name])
 
     @classmethod
     def cleanup_tracked(cls):
-        cfg = ConfigObj(DORKBOX_CONFIG_PATH, unrepr=True, write_empty_values=True)
+        cfg = ConfigObj(FOOLSCRATE_CONFIG_PATH, unrepr=True, write_empty_values=True)
         still_to_be_tracked = [directory for directory in cfg["track"] if exists(directory)]
         cfg["track"] = still_to_be_tracked
         cfg.write()

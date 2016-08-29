@@ -2,7 +2,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='dorkbox',
+    name='foolscrate',
     version='0.1.dev0',
     packages=find_packages(),
     license='Apache License 2.0',
@@ -16,7 +16,7 @@ setup(
     entry_points={
         "console_scripts": [
             "unit=unittest.__main__:main",
-            "dorkbox=dorkbox.cmdline:cmdline"
+            "foolscrate=foolscrate.cmdline:cmdline"
         ]
     }
 )

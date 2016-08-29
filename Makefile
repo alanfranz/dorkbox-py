@@ -7,7 +7,6 @@ PYTHON ?= $(shell which python3.5)
 VIRTUALENV ?= $(shell which virtualenv) -p $(PYTHON)
 FIND := $(shell which gfind || which find)
 
-
 devenv: setup.py requirements.txt Makefile
 	test -r devenv || $(VIRTUALENV) devenv
 	touch -t 197001010000 devenv

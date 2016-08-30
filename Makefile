@@ -14,7 +14,7 @@ devenv: setup.py requirements.txt Makefile
 	touch devenv
 
 bpython: devenv devenv/bin/bpython
-	source devenv/bin/activate ; python devenv/bin/pip install bpython
+	source devenv/bin/activate && python devenv/bin/pip install bpython
 
 freeze: distclean devenv Makefile
 	# TODO: we should improve, if the project name includes grep-regexp-active chars, it could match improperly

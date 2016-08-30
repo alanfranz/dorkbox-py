@@ -15,7 +15,7 @@ import logging
 
 from os.path import exists
 
-logging.basicConfig(stream= sys.stderr, level=logging.DEBUG)
+logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
 
 class TestRepository(TestCase):
@@ -49,6 +49,7 @@ class TestRepository(TestCase):
                     self.assertTrue(first_repo.client_id in all_branches)
                     self.assertTrue(second_repo.client_id in all_branches)
 
+
 class TestSync(TestCase):
     def setUp(self):
         Repository.cleanup_tracked()
@@ -69,7 +70,6 @@ class TestSync(TestCase):
         rmtree(self.second_client_dir)
         rmtree(self.third_client_dir)
         Repository.cleanup_tracked()
-
 
     def test_syncing_between_two_clients(self):
         with open(join(self.first_client_dir, "something"), mode="w", encoding="ascii") as f:
@@ -151,12 +151,15 @@ class TestSync(TestCase):
         self.assertTrue(exists(join(self.second_client_dir, CONFLICT_STRING)))
 
         call(["git", "--work-tree={}".format(self.second_client_dir),
-                    "--git-dir={}".format(join(self.second_client_dir, ".git")), "merge", "foolscrate/master"], stderr=DEVNULL)
+              "--git-dir={}".format(join(self.second_client_dir, ".git")), "merge", "foolscrate/master"],
+             stderr=DEVNULL)
 
         with open(join(self.second_client_dir, "something"), mode="w", encoding="ascii") as f:
             f.write("merged")
 
-        check_call(["git", "--work-tree={}".format(self.second_client_dir), "--git-dir={}".format(join(self.second_client_dir, ".git")), "commit", "-am", "solved conflict"], stderr=DEVNULL)
+        check_call(["git", "--work-tree={}".format(self.second_client_dir),
+                    "--git-dir={}".format(join(self.second_client_dir, ".git")), "commit", "-am", "solved conflict"],
+                   stderr=DEVNULL)
         os.unlink(join(self.second_client_dir, CONFLICT_STRING))
 
         self.second_repo.sync()
@@ -201,7 +204,6 @@ class TestCrontabManipulation(TestCase):
             f.flush()
             check_call(["crontab", f.name])
 
-
     def test_cron_enabled_when_crontab_empty(self):
         Repository.enable_foolscrate_cronjob()
         current_crontab = check_output(["crontab", "-l"], universal_newlines=True)
@@ -218,4 +220,3 @@ class TestCrontabManipulation(TestCase):
         Repository.enable_foolscrate_cronjob("asdasd")
         current_crontab = check_output(["crontab", "-l"], universal_newlines=True)
         self.assertEqual(1, current_crontab.count("asdasd"))
-

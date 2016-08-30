@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from subprocess import check_output, PIPE
+
 from os.path import abspath, join
+
 
 class Git(object):
     def __init__(self, root_repository_dir):

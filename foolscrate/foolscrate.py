@@ -22,6 +22,7 @@ FOOLSCRATE_CONFIG_PATH = join(expanduser("~"), ".foolscrate.conf")
 FOOLSCRATE_CONFIG_LOCK = FOOLSCRATE_CONFIG_PATH + '.lock'
 FOOLSCRATE_CRONTAB_COMMENT = '# foolscrate sync cronjob'
 
+
 class SyncError(Exception):
     def __init__(self, directory):
         super().__init__("Could not sync '{}'".format(directory))
@@ -33,7 +34,9 @@ class Repository(object):
 
     @classmethod
     def create_new(cls, local_directory, remote_url):
-        cls._logger.info("Will create new foolscrate-enabled repository in local directory. Remote %s should exist and be empty.", remote_url)
+        cls._logger.info(
+            "Will create new foolscrate-enabled repository in local directory. Remote %s should exist and be empty.",
+            remote_url)
 
         if exists(join(local_directory, ".git")):
             raise ValueError("Preexisting git repo found")
@@ -60,7 +63,9 @@ class Repository(object):
 
     @classmethod
     def connect_existing(cls, local_directory, remote_url):
-        cls._logger.info("Will create new git repo in local directory and connect to remote existing foolscrate repository %s", remote_url)
+        cls._logger.info(
+            "Will create new git repo in local directory and connect to remote existing foolscrate repository %s",
+            remote_url)
 
         if exists(join(local_directory, ".git")):
             raise ValueError("Preexisting git repo found")
@@ -76,10 +81,10 @@ class Repository(object):
         abs_local_directory = abspath(local_directory)
 
         if not (
-            exists(abs_local_directory) and
-            access(abs_local_directory, R_OK | W_OK | X_OK) and
-            exists(join(abs_local_directory, ".git"))
-                ):
+                        exists(abs_local_directory) and
+                        access(abs_local_directory, R_OK | W_OK | X_OK) and
+                    exists(join(abs_local_directory, ".git"))
+        ):
             raise ValueError("{} is not a valid foolscrate-enabled repository".format(abs_local_directory))
 
         # TODO: what was that alan-mayday error?
@@ -124,7 +129,8 @@ class Repository(object):
 
                 break
             else:
-                self._logger.error("Couldn't succeed at merging or pushing back our changes, probably we've got a conflict")
+                self._logger.error(
+                    "Couldn't succeed at merging or pushing back our changes, probably we've got a conflict")
                 with open(self._conflict_string, "w") as f:
                     pass
                 raise SyncError(self.localdir)
@@ -148,14 +154,14 @@ class Repository(object):
 
     @classmethod
     def configure_client_id(cls, git):
-      client_id = 'foolscrate-' + gethostname() + "-" + "".join(choice(string.ascii_lowercase + string.digits) for _ in range(5))
-      git.cmd('config', '--local', 'foolscrate.client-id', client_id)
-      return client_id
+        client_id = 'foolscrate-' + gethostname() + "-" + "".join(
+            choice(string.ascii_lowercase + string.digits) for _ in range(5))
+        git.cmd('config', '--local', 'foolscrate.client-id', client_id)
+        return client_id
 
     @classmethod
     def _align_client_ref_to_master(cls, git, client_id):
-       return git.cmd('update-ref', "refs/heads/{}".format(client_id), 'master')
-
+        return git.cmd('update-ref', "refs/heads/{}".format(client_id), 'master')
 
     @classmethod
     def sync_all_tracked(cls):
@@ -190,7 +196,8 @@ class Repository(object):
         if len(old_crontab) > 0 and (old_crontab[-1] != "\n"):
             old_crontab += "\n"
 
-        new_crontab = old_crontab + cron_start + "*/5 * * * * {}".format(shell_quote(executable) + " sync_all_tracked\n") + cron_end
+        new_crontab = old_crontab + cron_start + "*/5 * * * * {}".format(
+            shell_quote(executable) + " sync_all_tracked\n") + cron_end
 
         with NamedTemporaryFile(prefix="foolscrate-temp", mode="w+", encoding="utf-8") as tmp:
             tmp.write(new_crontab)
@@ -207,6 +214,3 @@ class Repository(object):
     @classmethod
     def test(cls):
         raise NotImplementedError("not yet implemented")
-
-
-

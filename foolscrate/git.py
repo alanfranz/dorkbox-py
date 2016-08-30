@@ -5,11 +5,11 @@ from os.path import abspath, join
 class Git(object):
     def __init__(self, root_repository_dir):
         self._root_repository_dir = root_repository_dir
-        self._git_command = self.generate_git_command(root_repository_dir)
+        self._git_command = self._generate_git_command(root_repository_dir)
         self.cmd("status")
 
     @classmethod
-    def generate_git_command(cls, local_directory):
+    def _generate_git_command(cls, local_directory):
         abs_local_directory = abspath(local_directory)
         gitdir = join(abs_local_directory, ".git")
         return ["git", "--work-tree={}".format(abs_local_directory), "--git-dir={}".format(gitdir)]

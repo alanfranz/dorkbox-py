@@ -199,7 +199,7 @@ class TestCrontabManipulation(TestCase):
             call(["crontab", "-r"], universal_newlines=True, stderr=DEVNULL)
             return
 
-        with NamedTemporaryFile(encoding="utf-8") as f:
+        with NamedTemporaryFile(encoding="utf-8", mode="w+") as f:
             f.write(self.save_user_crontab)
             f.flush()
             check_call(["crontab", f.name])

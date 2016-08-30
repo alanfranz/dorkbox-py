@@ -7,9 +7,16 @@ node {
 
     stage 'Packaging'
     catchError {
-	sh 'packaging/ubuntu-trusty/build'
-	sh 'packaging/ubuntu-xenial/build'
+	def distros = ["ubuntu-trusty", "ubuntu-xenial"]
+	parallelize = [:]
+	for (String distro: distros) {
+	    parallelize[distro] = {
+		sh 'packaging/${distro}/build'
+		}
+	}
+	parallel parallelize
     }
+
 
     step([$class: 'Mailer', notifyEveryUnstableBuild: false, sendToIndividuals: true])
 }

@@ -3,11 +3,15 @@
 SHELL := /bin/bash
 # override VIRTUALENV or PYTHON as needed. If you override VIRTUALENV
 # PYTHON may not be interpreted, depending on what you set.
+# WARNING: you MUST ALWAYS set the proper PYTHON even though
+# you may override VIRTUALENV - it will let the script detect
+# changes in the python interpreter and recreate the devenv on such change.
+# you'll thank me later.
 PYTHON ?= $(shell which python3)
 VIRTUALENV ?= $(shell which virtualenv) -p $(PYTHON)
 FIND := $(shell which gfind || which find)
 
-devenv: setup.py requirements.txt Makefile
+devenv: setup.py requirements.txt Makefile $(PYTHON)
 	test -r devenv || $(VIRTUALENV) devenv
 	touch -t 197001010000 devenv
 	source devenv/bin/activate && python devenv/bin/pip install -r requirements.txt && python devenv/bin/pip install --editable . --upgrade

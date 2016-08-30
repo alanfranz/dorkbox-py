@@ -11,7 +11,7 @@ node {
 	parallelize = [:]
 	for (String distro: distros) {
 	    parallelize[distro] = {
-		sh 'packaging/${distro}/build'
+		sh "packaging/${distro}/build"
 		}
 	}
 	parallel parallelize

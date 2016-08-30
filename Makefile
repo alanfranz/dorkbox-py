@@ -11,11 +11,14 @@ PYTHON ?= $(shell which python3)
 VIRTUALENV ?= $(shell which virtualenv) -p $(PYTHON)
 FIND := $(shell which gfind || which find)
 
-devenv: setup.py requirements.txt Makefile $(PYTHON)
-	test -r devenv || $(VIRTUALENV) devenv
+devenv: setup.py requirements.txt Makefile devenv/bin/python
 	touch -t 197001010000 devenv
 	source devenv/bin/activate && python devenv/bin/pip install -r requirements.txt && python devenv/bin/pip install --editable . --upgrade
 	touch devenv
+
+devenv/bin/python: $(PYTHON)
+	rm -rf devenv
+	$(VIRTUALENV) devenv
 
 bpython: devenv
 	source devenv/bin/activate && python devenv/bin/pip install bpython

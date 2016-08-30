@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from subprocess import check_output, PIPE
 from os.path import abspath, join
 

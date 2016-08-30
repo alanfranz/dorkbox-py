@@ -9,7 +9,8 @@ from tempfile import TemporaryDirectory, mkdtemp, NamedTemporaryFile
 import os, sys
 from subprocess import check_call, check_output, DEVNULL, call, CalledProcessError
 
-from foolscrate.foolscrate import Git, Repository, GITIGNORE, CONFLICT_STRING, SyncError, FOOLSCRATE_CRONTAB_COMMENT
+from foolscrate.foolscrate import Repository, GITIGNORE, CONFLICT_STRING, SyncError, FOOLSCRATE_CRONTAB_COMMENT
+from foolscrate.git import Git
 import logging
 
 from os.path import exists

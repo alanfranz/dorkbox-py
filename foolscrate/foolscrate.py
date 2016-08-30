@@ -1,17 +1,19 @@
 # -*- coding: utf-8 -*-
-from os.path import expanduser, join, abspath, exists, dirname
-from os import access, R_OK, W_OK, X_OK
-from subprocess import check_output, PIPE, CalledProcessError
 import logging
-from socket import gethostname
-from shlex import quote as shell_quote
 import string
+import sys
+from shlex import quote as shell_quote
+from socket import gethostname
+from subprocess import check_output, CalledProcessError
+
+from configobj import ConfigObj
+from filelock import FileLock
+from foolscrate.git import Git
+from os import access, R_OK, W_OK, X_OK
+from os.path import expanduser, join, abspath, exists, dirname
 from random import choice
 from re import compile as re_compile, DOTALL as RE_DOTALL
 from tempfile import NamedTemporaryFile
-from configobj import ConfigObj
-from filelock import FileLock
-import sys
 
 LOCKFILE_NAME = '.foolscrate.lock'
 CONFLICT_STRING = 'CONFLICT_MUST_MANUALLY_MERGE'
@@ -23,34 +25,6 @@ FOOLSCRATE_CRONTAB_COMMENT = '# foolscrate sync cronjob'
 class SyncError(Exception):
     def __init__(self, directory):
         super().__init__("Could not sync '{}'".format(directory))
-
-
-
-
-
-
-class Git(object):
-    def __init__(self, root_repository_dir):
-        self._root_repository_dir = root_repository_dir
-        self._git_command = self.generate_git_command(root_repository_dir)
-        self.cmd("status")
-
-    @classmethod
-    def generate_git_command(cls, local_directory):
-        abs_local_directory = abspath(local_directory)
-        gitdir = join(abs_local_directory, ".git")
-        return ["git", "--work-tree={}".format(abs_local_directory), "--git-dir={}".format(gitdir)]
-
-    def cmd(self, *args):
-        return check_output(self._git_command + list(args), universal_newlines=True, stderr=PIPE)
-
-    @classmethod
-    def init(self, root_repository_dir):
-        """Performs the actual 'git init' command"""
-        path = abspath(root_repository_dir)
-        cmd = ["git", "init", path]
-        check_output(cmd)
-        return Git(path)
 
 
 class Repository(object):

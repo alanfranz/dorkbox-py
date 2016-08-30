@@ -16,11 +16,11 @@ devenv: setup.py requirements.txt Makefile
 bpython: devenv
 	source devenv/bin/activate && python devenv/bin/pip install bpython
 
-freeze: distclean devenv Makefile
+freeze: distclean devenv
 	# TODO: we should improve, if the project name includes grep-regexp-active chars, it could match improperly
 	source devenv/bin/activate && PROJECT_NAME=$$(devenv/bin/python setup.py --name) && python devenv/bin/pip freeze | grep -v "$${PROJECT_NAME}$$" > requirements.txt
 
-upgrade: devenv Makefile
+upgrade: devenv
 	source devenv/bin/activate && python devenv/bin/pip install --upgrade --editable .
 	@echo "Upgrade performed, you'll probably want to perform a freeze as well once your tests are successful"
 

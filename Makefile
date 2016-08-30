@@ -13,7 +13,7 @@ devenv: setup.py requirements.txt Makefile
 	source devenv/bin/activate && python devenv/bin/pip install -r requirements.txt && python devenv/bin/pip install --editable . --upgrade
 	touch devenv
 
-bpython: devenv devenv/bin/bpython
+bpython: devenv
 	source devenv/bin/activate && python devenv/bin/pip install bpython
 
 freeze: distclean devenv Makefile

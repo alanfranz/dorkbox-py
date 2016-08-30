@@ -3,7 +3,7 @@
 SHELL := /bin/bash
 # override VIRTUALENV or PYTHON as needed. If you override VIRTUALENV
 # PYTHON may not be interpreted, depending on what you set.
-PYTHON ?= $(shell which python3.5)
+PYTHON ?= $(shell which python3)
 VIRTUALENV ?= $(shell which virtualenv) -p $(PYTHON)
 FIND := $(shell which gfind || which find)
 

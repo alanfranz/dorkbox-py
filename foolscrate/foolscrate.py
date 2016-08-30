@@ -209,10 +209,4 @@ class Repository(object):
         raise NotImplementedError("not yet implemented")
 
 
-def cmdline():
-    # TODO: improve this with the right library, e.g. click
-    commands = ["test", "enable_autosync_all_tracked", "sync_all_tracked", "track", "untrack", "create", "connect"]
-    command = sys.argv[1]
-    if command not in commands:
-        raise ValueError("unknown command '{}'".format(command))
 

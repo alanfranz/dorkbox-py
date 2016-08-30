@@ -7,7 +7,7 @@ from socket import gethostname
 from shlex import quote as shell_quote
 import string
 from random import choice
-from re import sub as re_sub, compile as re_compile, DOTALL as RE_DOTALL
+from re import compile as re_compile, DOTALL as RE_DOTALL
 from tempfile import NamedTemporaryFile
 from configobj import ConfigObj
 from filelock import FileLock

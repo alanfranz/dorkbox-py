@@ -1,27 +1,25 @@
 node {
     stage 'Build'
     catchError {
-	git url: 'git@github.com:alanfranz/foolscrate.git', branch: 'v1dev'
+//	git url: 'git@github.com:alanfranz/foolscrate.git', branch: 'v1dev'
 	checkout scm
 	sh 'make clean test'
     } 
 
     stage 'Packaging'
 	def distros = ["ubuntu-trusty", "ubuntu-xenial", "debian-jessie", "fedora-24", "centos-7"]
-	parallelize = [:]
+//	parallelize = [:]
 	for (String distro: distros) {
-	    parallelize[distro] = {
 		catchError {
 			println "PACKAGING START ${distro}"
 			sh "packaging/${distro}/build"
 			println "PACKAGING END ${distro}"
 			}
-		}
 	}
-	parallel parallelize
+//	parallel parallelize
 
 
-    step([$class: 'Mailer', notifyEveryUnstableBuild: false, sendToIndividuals: true])
+    step([$class: 'Mailer', notifyEveryUnstableBuild: true, sendToIndividuals: true, recipients: 'username@franzoni.eu'])
 }
 
 

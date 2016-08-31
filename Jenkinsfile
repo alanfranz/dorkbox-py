@@ -1,6 +1,7 @@
 node {
     stage 'Build'
     catchError {
+	git url: 'git@github.com:alanfranz/foolscrate.git', branch: 'v1dev'
 	checkout scm
 	sh 'make clean test'
     } 

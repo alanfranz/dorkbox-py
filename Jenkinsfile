@@ -6,10 +6,11 @@ node {
 	sh 'make clean test'
     } 
 
-    stage 'Packaging'
 	def distros = ["ubuntu-trusty", "ubuntu-xenial", "debian-jessie", "fedora-24", "centos-7"]
 //	parallelize = [:]
 	for (String distro: distros) {
+
+    	stage "Packaging ${distro}"
 		catchError {
 			println "PACKAGING START ${distro}"
 			sh "packaging/${distro}/build"

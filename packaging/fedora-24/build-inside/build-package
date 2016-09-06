@@ -11,6 +11,7 @@ rsync --exclude '.git' -a /source .
 mv source foolscrate
 cd foolscrate
 make VIRTUALENV=$(which virtualenv-3.5) distclean devenv
+ln -s /opt/foolscrate/devenv/bin/foolscrate /usr/bin/foolscrate
 
 gpg --import /tmp/private.key
 [[ $(gpg --list-secret-keys) =~ uid(.*) ]]
@@ -23,4 +24,4 @@ cd /out
 # is installing all the things in a separate dir to prevent listing all the files - but it's
 # just personal taste.
 # remember to list all your runtime dependencies, e.g. the shared libraries you link to.
-echo -e "\n" | setsid fpm -t rpm -s dir -n foolscrate --rpm-sign --version ${VERSION} --iteration "${BUILD_NUMBER}.fc24" --description "foolscrate ${GIT_COMMIT}" --depends python3 --depends git --depends cronie -C / /opt/foolscrate
+echo -e "\n" | setsid fpm -t rpm -s dir -n foolscrate --rpm-sign --version ${VERSION} --iteration "${BUILD_NUMBER}.fc24" --description "foolscrate ${GIT_COMMIT}" --depends python3 --depends git --depends cronie -C / /opt/foolscrate /usr/bin/foolscrate

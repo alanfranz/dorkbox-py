@@ -11,10 +11,11 @@ rsync --exclude '.git' -a /source .
 mv source foolscrate
 cd foolscrate
 make PYTHON="/usr/bin/python3" distclean devenv
+ln -s /opt/foolscrate/devenv/bin/foolscrate /usr/bin/foolscrate
 
 cd /out
 # this is a standard fpm command. look at fpm's own help. The only thing that I like to do
 # is installing all the things in a separate dir to prevent listing all the files - but it's
 # just personal taste.
 # remember to list all your runtime dependencies, e.g. the shared libraries you link to.
-fpm -t deb -s dir -n foolscrate --version ${VERSION} --iteration "${BUILD_NUMBER}-trusty" --description "foolscrate ${GIT_COMMIT}" --depends python3 --depends git --depends cron -C / /opt/foolscrate
+fpm -t deb -s dir -n foolscrate --version ${VERSION} --iteration "${BUILD_NUMBER}-trusty" --description "foolscrate ${GIT_COMMIT}" --depends python3 --depends git --depends cron -C / /opt/foolscrate /usr/bin/foolscrate

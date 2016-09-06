@@ -43,8 +43,8 @@ class Repository(object):
 
         git = Git.init(local_directory)
         with open(join(local_directory, GITIGNORE), "a", encoding="utf-8") as f:
-            f.write(CONFLICT_STRING)
-            f.write(LOCKFILE_NAME)
+            f.write(CONFLICT_STRING + "\n")
+            f.write(LOCKFILE_NAME+ "\n")
 
         git.cmd("remote", "add", "foolscrate", remote_url)
         git.cmd("add", GITIGNORE)

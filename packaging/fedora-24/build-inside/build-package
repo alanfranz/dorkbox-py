@@ -10,7 +10,7 @@ cd /opt
 rsync --exclude '.git' -a /source .
 mv source foolscrate
 cd foolscrate
-make VIRTUALENV=$(which virtualenv-3.5) distclean devenv
+make VIRTUALENV=$(which virtualenv-3.5) PYTHON=$(which python3.5) distclean devenv
 ln -s /opt/foolscrate/devenv/bin/foolscrate /usr/bin/foolscrate
 
 gpg --import /tmp/private.key

@@ -183,7 +183,7 @@ class Repository(object):
                     cls._logger.exception("Error while syncing '%s'", localdir)
 
     @classmethod
-    def enable_foolscrate_cronjob(cls, executable=join(dirname(abspath(__file__)), "devenv", "bin", "foolscrate")):
+    def enable_foolscrate_cronjob(cls, executable=join(dirname(abspath(__file__)), "..", "devenv", "bin", "foolscrate")):
         cron_start = "{} start\n".format(FOOLSCRATE_CRONTAB_COMMENT)
         cron_end = "{} end\n".format(FOOLSCRATE_CRONTAB_COMMENT)
         try:

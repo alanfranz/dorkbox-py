@@ -220,3 +220,17 @@ class TestCrontabManipulation(TestCase):
         Repository.enable_foolscrate_cronjob("asdasd")
         current_crontab = check_output(["crontab", "-l"], universal_newlines=True)
         self.assertEqual(1, current_crontab.count("asdasd"))
+
+    def test_cron_executable_exists(self):
+        Repository.enable_foolscrate_cronjob()
+        current_crontab = check_output(["crontab", "-l"], universal_newlines=True)
+        lines = current_crontab.split("\n")
+        for line in lines:
+            if "*" in line and "foolscrate" in line:
+                executable = line.rsplit("*")[-1].strip().split(" ")[0]
+                self.assertTrue(exists(executable), "could not find executable '{}'".format(executable))
+                self.assertTrue(os.access(executable, os.R_OK | os.X_OK), "wrong permissions for {}".format(executable))
+                break
+        else:
+            self.fail("line with executable was not found")
+

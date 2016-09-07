@@ -3,7 +3,7 @@ require 'fileutils'
 class Foolscrate < Formula
   desc ""
   homepage ""
-  url 'https://github.com/alanfranz/foolscrate.git', :using => :git, :revision => 'e9d7dbecb29973dd5291b919b1a98da95e9ed287'
+  url 'https://github.com/alanfranz/foolscrate.git', :using => :git, :revision => 'c9ed0803a3b71df3caff7b10da19c45fb27df114'
   head 'https://github.com/alanfranz/foolscrate.git', :using => :git, :branch => 'v1dev'
   version "1.2"
   depends_on "python3"

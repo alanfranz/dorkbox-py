@@ -12,6 +12,7 @@ PYTHON ?= $(shell which python3)
 VIRTUALENV ?= $(shell which virtualenv) -p $(PYTHON)
 FIND := $(shell which gfind || which find)
 PREFIX ?= "/tmp/local/foolscrate"
+TEST_PATTERN ?= "test_*.py"
 
 devenv: setup.py requirements.txt Makefile devenv/bin/python
 	touch -t 197001010000 devenv
@@ -39,7 +40,7 @@ upgrade: devenv
 	@echo "Upgrade performed, you'll probably want to perform a freeze as well once your tests are successful"
 
 test: devenv
-	devenv/bin/unit discover -v
+	devenv/bin/unit discover -v -p $(TEST_PATTERN)
 
 clean:
 	rm -rf tmp build dist

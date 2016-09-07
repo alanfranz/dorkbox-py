@@ -1,4 +1,4 @@
-.PHONY: test clean distclean bpython freeze upgrade
+.PHONY: test clean distclean bpython freeze upgrade install
 
 
 SHELL := /bin/bash
@@ -11,11 +11,17 @@ SHELL := /bin/bash
 PYTHON ?= $(shell which python3)
 VIRTUALENV ?= $(shell which virtualenv) -p $(PYTHON)
 FIND := $(shell which gfind || which find)
+PREFIX ?= "/tmp/local/foolscrate"
 
 devenv: setup.py requirements.txt Makefile devenv/bin/python
 	touch -t 197001010000 devenv
 	source devenv/bin/activate && python devenv/bin/pip install -r requirements.txt && python devenv/bin/pip install --editable . --upgrade
 	touch devenv
+
+install:
+	mkdir -p $(PREFIX)
+	$(VIRTUALENV) --clear $(PREFIX)
+	source $(PREFIX)/bin/activate && python $(PREFIX)/bin/pip install -r requirements.txt && python $(PREFIX)/bin/pip install --upgrade .
 
 devenv/bin/python: $(PYTHON)
 	rm -rf devenv

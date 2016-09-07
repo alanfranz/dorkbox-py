@@ -19,8 +19,13 @@ setup(
     zip_safe=False,
     entry_points={
         "console_scripts": [
+            "foolscrate=foolscrate.cmdline:cmdline",
+            # the following target is actually employed from the installed environment,
+            # since it's location independent.
+            "run_all_tests=foolscrate.test.run:run_all_tests",
+            # this is used during development because it makes it easier to selectively choose
+            # which tests we should run
             "unit=unittest.__main__:main",
-            "foolscrate=foolscrate.cmdline:cmdline"
         ]
     }
 )

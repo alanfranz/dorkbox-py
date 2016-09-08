@@ -15,6 +15,7 @@ from os.path import expanduser, join, abspath, exists, dirname
 from random import choice
 from re import compile as re_compile, DOTALL as RE_DOTALL
 from tempfile import NamedTemporaryFile
+import locale
 
 LOCKFILE_NAME = '.foolscrate.lock'
 CONFLICT_STRING = 'CONFLICT_MUST_MANUALLY_MERGE'
@@ -206,8 +207,11 @@ class Repository(object):
         if len(old_crontab) > 0 and (old_crontab[-1] != "\n"):
             old_crontab += "\n"
 
+
+        # I don't know if this locale approach is sound... but seems to work on macos,
+        # at least
         new_crontab = old_crontab + cron_start + "*/5 * * * * {}".format(
-            shell_quote(foolscrate_executable) + " sync_all_tracked\n") + cron_end
+            "LANG={} ".format(".".join(locale.getdefaultlocale()) + shell_quote(foolscrate_executable) + " sync_all_tracked\n") + cron_end
 
         with NamedTemporaryFile(prefix="foolscrate-temp", mode="w+", encoding="utf-8") as tmp:
             tmp.write(new_crontab)

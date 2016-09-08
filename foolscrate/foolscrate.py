@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
+import os
 import string
 import sys
 from shlex import quote as shell_quote
@@ -183,7 +184,16 @@ class Repository(object):
                     cls._logger.exception("Error while syncing '%s'", localdir)
 
     @classmethod
-    def enable_foolscrate_cronjob(cls, executable=join(dirname(abspath(__file__)), "..", "devenv", "bin", "foolscrate")):
+    def enable_foolscrate_cronjob(cls, foolscrate_executable=None):
+        if foolscrate_executable is None:
+            # we try to determine where our launch script is located. this is mostly heuristic, so far.
+            # we suppose it's in the same dir as our executable since we work within a virtualenv
+            python_interpreter_dir = os.path.dirname(sys.executable)
+            foolscrate_executable = join(python_interpreter_dir, "foolscrate")
+
+        if not os.access(foolscrate_executable, os.R_OK | os.X_OK):
+            raise ValueError("Check your install; invalid foolscrate executable: '{}' ".format(foolscrate_executable))
+
         cron_start = "{} start\n".format(FOOLSCRATE_CRONTAB_COMMENT)
         cron_end = "{} end\n".format(FOOLSCRATE_CRONTAB_COMMENT)
         try:
@@ -197,7 +207,7 @@ class Repository(object):
             old_crontab += "\n"
 
         new_crontab = old_crontab + cron_start + "*/5 * * * * {}".format(
-            shell_quote(executable) + " sync_all_tracked\n") + cron_end
+            shell_quote(foolscrate_executable) + " sync_all_tracked\n") + cron_end
 
         with NamedTemporaryFile(prefix="foolscrate-temp", mode="w+", encoding="utf-8") as tmp:
             tmp.write(new_crontab)

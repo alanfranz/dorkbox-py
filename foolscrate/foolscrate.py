@@ -210,8 +210,10 @@ class Repository(object):
 
         # I don't know if this locale approach is sound... but seems to work on macos,
         # at least
-        new_crontab = old_crontab + cron_start + "*/5 * * * * {}".format(
-            "LANG={} ".format(".".join(locale.getdefaultlocale()) + shell_quote(foolscrate_executable) + " sync_all_tracked\n") + cron_end
+        new_crontab = old_crontab + \
+                cron_start + \
+                "*/5 * * * * LANG={} {} sync_all_tracked\n".format(shell_quote(".".join(locale.getdefaultlocale())), shell_quote(foolscrate_executable)) + \
+                cron_end
 
         with NamedTemporaryFile(prefix="foolscrate-temp", mode="w+", encoding="utf-8") as tmp:
             tmp.write(new_crontab)

@@ -5,7 +5,7 @@ import string
 import sys
 from shlex import quote as shell_quote
 from socket import gethostname
-from subprocess import check_output, CalledProcessError
+from subprocess import check_output, CalledProcessError, Popen, PIPE
 
 from configobj import ConfigObj
 from filelock import FileLock
@@ -15,7 +15,6 @@ from os.path import expanduser, join, abspath, exists, dirname
 from random import choice
 from re import compile as re_compile, DOTALL as RE_DOTALL
 from tempfile import NamedTemporaryFile
-import locale
 
 LOCKFILE_NAME = '.foolscrate.lock'
 CONFLICT_STRING = 'CONFLICT_MUST_MANUALLY_MERGE'
@@ -212,8 +211,8 @@ class Repository(object):
         # at least
         new_crontab = old_crontab + \
                 cron_start + \
-                "*/5 * * * * LANG={} {} sync_all_tracked\n".format(shell_quote(".".join(locale.getdefaultlocale())), shell_quote(foolscrate_executable)) + \
-                cron_end
+                "*/5 * * * * LANG={} {} sync_all_tracked\n".format(shell_quote(_find_suitable_utf8_locale()), shell_quote(foolscrate_executable)) + \
+                      cron_end
 
         with NamedTemporaryFile(prefix="foolscrate-temp", mode="w+", encoding="utf-8") as tmp:
             tmp.write(new_crontab)
@@ -230,3 +229,35 @@ class Repository(object):
     @classmethod
     def test(cls):
         raise NotImplementedError("not yet implemented")
+
+
+# this is to workaround click madness.. hope to remove it in the future.
+# it actually mimics what click._unicodefun itself does..
+# see https://github.com/pallets/click/issues/448
+def _find_suitable_utf8_locale():
+    rv = Popen(['locale', '-a'], stdout=PIPE, stderr=PIPE).communicate()[0]
+    good_locales = set()
+
+    # Make sure we're operating on text here.
+    if isinstance(rv, bytes):
+        rv = rv.decode('ascii', 'replace')
+
+    for line in rv.splitlines():
+        locale = line.strip()
+        if locale.lower() in good_locales:
+            continue
+        if locale.lower().endswith(('.utf-8', '.utf8')):
+            if locale.lower() in ('c.utf8', 'c.utf-8'):
+                # click says that c.utf8 is the best locale ever,
+                # so if we encounter it, we use it immediately.
+                return locale
+            else:
+                good_locales.add(locale)
+
+    if not good_locales:
+        raise ValueError("could not find any utf8 enabled locale on this system")
+
+    # just anyone will do, since ASCII would work perfectly fine as well.
+    return good_locales.pop()
+
+

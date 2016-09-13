@@ -10,3 +10,4 @@ Work in progress
 * see if libgit2 makes the tool faster
 * the 5-minute cron is slow and has the sync-at-the-same-time effect. consider reducing the cron and introducing an optional random delay
   option for the sync_all_tracked command
+* something like inotify on linux instead of cron?

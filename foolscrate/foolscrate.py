@@ -3,9 +3,11 @@ import logging
 import os
 import string
 import sys
+from time import sleep
 from shlex import quote as shell_quote
 from socket import gethostname
 from subprocess import check_output, CalledProcessError, Popen, PIPE
+from random import shuffle, uniform
 
 from configobj import ConfigObj
 from filelock import FileLock
@@ -32,6 +34,10 @@ class SyncError(Exception):
 class Repository(object):
     _logger = logging.getLogger("Repository")
     _track_lock = FileLock(FOOLSCRATE_CONFIG_LOCK)
+
+    _SLEEP_BETWEEN_MERGE_ATTEMPTS_SECONDS = 1
+    _SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MIN_SECONDS = 1
+    _SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MAX_SECONDS = 4
 
     @classmethod
     def create_new(cls, local_directory, remote_url):
@@ -118,6 +124,7 @@ class Repository(object):
                 except Exception as e:
                     self._logger.exception("Error while merging, aborting merge")
                     self._git.cmd("merge", "--abort")
+                    sleep(self._SLEEP_BETWEEN_MERGE_ATTEMPTS_SECONDS)
                     continue
 
                 self._align_client_ref_to_master(self._git, self.client_id)
@@ -126,8 +133,8 @@ class Repository(object):
                     self._git.cmd("push", "foolscrate", "master", self.client_id)
                 except Exception as e:
                     self._logger.exception("Error while pushing")
+                    sleep(self._SLEEP_BETWEEN_MERGE_ATTEMPTS_SECONDS)
                     continue
-
                 break
             else:
                 self._logger.error(
@@ -175,9 +182,15 @@ class Repository(object):
                 cls._logger.debug("file not found while opening foolscrate config file", e)
                 return
 
-            for localdir in cfg.get("track", []):
+            # shuffle the order in which we sync repos, AND send a bit of random delay;
+            # this should improve on the hammering issue.
+            tracked = cfg.get("track", [])
+            shuffle(tracked)
+            for localdir in tracked:
                 try:
                     repo = Repository(localdir)
+                    delay = uniform(cls._SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MIN_SECONDS, cls._SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MAX_SECONDS)
+                    sleep(delay)
                     repo.sync()
                     cls._logger.info("synced '%s'", localdir)
                 except Exception as e:

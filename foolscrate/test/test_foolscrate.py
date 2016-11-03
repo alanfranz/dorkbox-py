@@ -184,39 +184,32 @@ class TestSync(TestCase):
         self.assertFalse(exists(join(self.second_client_dir, "something")))
 
 
+class SpyCrontab(object):
+    def __init__(self):
+        self.arguments = []
+        self.crontab = ""
+
+    def cmd(self, *args):
+        self.arguments.append(args)
+        if args[0] == "-l":
+            return self.crontab
+        else:
+            self.crontab = open(args[0]).read()
+
 class TestCrontabManipulation(TestCase):
-    def setUp(self):
-        try:
-            self.save_user_crontab = check_output(["crontab", "-l"], universal_newlines=True, stderr=DEVNULL)
-        except CalledProcessError:
-            self.save_user_crontab = None
-
-        # now remove current crontab
-        call(["crontab", "-r"], universal_newlines=True, stderr=DEVNULL)
-
-    def tearDown(self):
-        if self.save_user_crontab is None:
-            call(["crontab", "-r"], universal_newlines=True, stderr=DEVNULL)
-            return
-
-        with NamedTemporaryFile(encoding="utf-8", mode="w+") as f:
-            f.write(self.save_user_crontab)
-            f.flush()
-            check_call(["crontab", f.name])
-
     def test_cron_enabled_when_crontab_empty(self):
-        Repository.enable_foolscrate_cronjob()
-        current_crontab = check_output(["crontab", "-l"], universal_newlines=True)
-        self.assertEqual(2, current_crontab.count(FOOLSCRATE_CRONTAB_COMMENT))
+        spy = SpyCrontab()
+        Repository.enable_foolscrate_cronjob(crontab_command=spy)
+        self.assertEqual(2, spy.crontab.count(FOOLSCRATE_CRONTAB_COMMENT))
 
     def test_cron_is_not_duplicated_if_already_there(self):
-        Repository.enable_foolscrate_cronjob()
-        Repository.enable_foolscrate_cronjob("/bin/ls")
-        current_crontab = check_output(["crontab", "-l"], universal_newlines=True)
-        self.assertEqual(2, current_crontab.count(FOOLSCRATE_CRONTAB_COMMENT))
+        spy = SpyCrontab()
+        Repository.enable_foolscrate_cronjob(crontab_command=spy)
+        Repository.enable_foolscrate_cronjob(crontab_command=spy)
+        self.assertEqual(2, spy.crontab.count(FOOLSCRATE_CRONTAB_COMMENT))
 
-    def test_cron_is_updated_if_already_there(self):
-        Repository.enable_foolscrate_cronjob()
-        Repository.enable_foolscrate_cronjob("/bin/ls")
-        current_crontab = check_output(["crontab", "-l"], universal_newlines=True)
-        self.assertEqual(1, current_crontab.count("/bin/ls"))
+    def test_cron_is_updated_if_already_there_but_executble_changes(self):
+        spy = SpyCrontab()
+        Repository.enable_foolscrate_cronjob(crontab_command=spy)
+        Repository.enable_foolscrate_cronjob(foolscrate_executable="/bin/ls", crontab_command=spy)
+        self.assertEqual(1, spy.crontab.count("/bin/ls"))

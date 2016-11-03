@@ -30,6 +30,11 @@ class SyncError(Exception):
     def __init__(self, directory):
         super().__init__("Could not sync '{}'".format(directory))
 
+class Crontab(object):
+    _crontab_command = "crontab"
+
+    def cmd(self, *args):
+        return check_output([self._crontab_command] + list(args), universal_newlines=True, stderr=PIPE)
 
 class Repository(object):
     _logger = logging.getLogger("Repository")
@@ -197,7 +202,7 @@ class Repository(object):
                     cls._logger.exception("Error while syncing '%s'", localdir)
 
     @classmethod
-    def enable_foolscrate_cronjob(cls, foolscrate_executable=None):
+    def enable_foolscrate_cronjob(cls, foolscrate_executable=None, crontab_command=Crontab()):
         if foolscrate_executable is None:
             # we try to determine where our launch script is located. this is mostly heuristic, so far.
             # we suppose it's in the same dir as our executable since we work within a virtualenv
@@ -210,7 +215,7 @@ class Repository(object):
         cron_start = "{} start\n".format(FOOLSCRATE_CRONTAB_COMMENT)
         cron_end = "{} end\n".format(FOOLSCRATE_CRONTAB_COMMENT)
         try:
-            old_crontab = check_output(["crontab", "-l"], universal_newlines=True)
+            old_crontab = crontab_command.cmd("-l")
         except CalledProcessError:
             old_crontab = ""
         cron_pattern = re_compile("{}.*?{}".format(cron_start, cron_end), RE_DOTALL)
@@ -230,7 +235,7 @@ class Repository(object):
         with NamedTemporaryFile(prefix="foolscrate-temp", mode="w+", encoding="utf-8") as tmp:
             tmp.write(new_crontab)
             tmp.flush()
-            check_output(["crontab", tmp.name])
+            crontab_command.cmd(tmp.name)
 
     @classmethod
     def cleanup_tracked(cls):

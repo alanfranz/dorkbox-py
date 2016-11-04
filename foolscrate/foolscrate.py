@@ -18,12 +18,8 @@ from random import choice
 from re import compile as re_compile, DOTALL as RE_DOTALL
 from tempfile import NamedTemporaryFile
 
-LOCKFILE_NAME = '.foolscrate.lock'
-CONFLICT_STRING = 'CONFLICT_MUST_MANUALLY_MERGE'
-GITIGNORE = '.gitignore'
-FOOLSCRATE_CONFIG_PATH = join(expanduser("~"), ".foolscrate.conf")
-FOOLSCRATE_CONFIG_LOCK = FOOLSCRATE_CONFIG_PATH + '.lock'
-FOOLSCRATE_CRONTAB_COMMENT = '# foolscrate sync cronjob'
+
+
 
 
 class SyncError(Exception):
@@ -37,6 +33,14 @@ class Crontab(object):
         return check_output([self._crontab_command] + list(args), universal_newlines=True, stderr=PIPE)
 
 class Repository(object):
+    FOOLSCRATE_CONFIG_PATH = join(expanduser("~"), ".foolscrate.conf")
+    FOOLSCRATE_CONFIG_LOCK = FOOLSCRATE_CONFIG_PATH + '.lock'
+    FOOLSCRATE_CRONTAB_COMMENT = '# foolscrate sync cronjob'
+
+    LOCKFILE_NAME = '.foolscrate.lock'
+    CONFLICT_STRING = 'CONFLICT_MUST_MANUALLY_MERGE'
+    GITIGNORE = '.gitignore'
+
     _logger = logging.getLogger("Repository")
     _track_lock = FileLock(FOOLSCRATE_CONFIG_LOCK)
 
@@ -54,12 +58,12 @@ class Repository(object):
             raise ValueError("Preexisting git repo found")
 
         git = Git.init(local_directory)
-        with open(join(local_directory, GITIGNORE), "a", encoding="utf-8") as f:
-            f.write(CONFLICT_STRING + "\n")
-            f.write(LOCKFILE_NAME+ "\n")
+        with open(join(local_directory, cls.GITIGNORE), "a", encoding="utf-8") as f:
+            f.write(cls.CONFLICT_STRING + "\n")
+            f.write(cls.LOCKFILE_NAME+ "\n")
 
         git.cmd("remote", "add", "foolscrate", remote_url)
-        git.cmd("add", GITIGNORE)
+        git.cmd("add", cls.GITIGNORE)
         git.cmd("commit", "-m", "enabling foolscrate")
 
         return cls.configure_repository(git, local_directory)
@@ -103,14 +107,14 @@ class Repository(object):
 
         self._git = Git(abs_local_directory)
         self.localdir = abs_local_directory
-        self._conflict_string = join(abs_local_directory, CONFLICT_STRING)
+        self._conflict_string = join(abs_local_directory, self.CONFLICT_STRING)
         self.client_id = self._git.cmd("config", "--local", "--get", "foolscrate.client-id").strip()
-        self._sync_lock = FileLock(join(self.localdir, LOCKFILE_NAME))
+        self._sync_lock = FileLock(join(self.localdir, self.LOCKFILE_NAME))
 
     def sync(self):
         # TODO: probably we should sleep a little between merging attempts
         with self._sync_lock.acquire(timeout=60):
-            if exists(CONFLICT_STRING):
+            if exists(self.CONFLICT_STRING):
                 self._logger.info("Conflict found, not syncing")
                 raise ValueError("Conflict found, not syncing")
 
@@ -152,7 +156,7 @@ class Repository(object):
 
     def track(self):
         with self._track_lock.acquire(timeout=60):
-            cfg = ConfigObj(FOOLSCRATE_CONFIG_PATH, unrepr=True, write_empty_values=True)
+            cfg = ConfigObj(self.FOOLSCRATE_CONFIG_PATH, unrepr=True, write_empty_values=True)
             # configobj doesn't support sets natively, only lists.
             track = cfg.get("track", [])
             track.append(self.localdir)
@@ -161,7 +165,7 @@ class Repository(object):
 
     def untrack(self):
         with self._track_lock.acquire(timeout=60):
-            cfg = ConfigObj(FOOLSCRATE_CONFIG_PATH, unrepr=True, write_empty_values=True)
+            cfg = ConfigObj(self.FOOLSCRATE_CONFIG_PATH, unrepr=True, write_empty_values=True)
             cfg.setdefault("track", []).remove(self.localdir)
             cfg.write()
 
@@ -181,25 +185,25 @@ class Repository(object):
         with cls._track_lock.acquire(timeout=60):
             cls._logger.debug("Now syncing all tracked repositories")
             try:
-                cfg = ConfigObj(FOOLSCRATE_CONFIG_PATH, unrepr=True, write_empty_values=True)
+                cfg = ConfigObj(cls.FOOLSCRATE_CONFIG_PATH, unrepr=True, write_empty_values=True)
+                tracked = cfg.get("track", [])
             except FileNotFoundError as e:
                 # TODO: check whether it really is meaningful with configobj
                 cls._logger.debug("file not found while opening foolscrate config file", e)
                 return
 
-            # shuffle the order in which we sync repos, AND send a bit of random delay;
-            # this should improve on the hammering issue.
-            tracked = cfg.get("track", [])
-            shuffle(tracked)
-            for localdir in tracked:
-                try:
-                    repo = Repository(localdir)
-                    delay = uniform(cls._SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MIN_SECONDS, cls._SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MAX_SECONDS)
-                    sleep(delay)
-                    repo.sync()
-                    cls._logger.info("synced '%s'", localdir)
-                except Exception as e:
-                    cls._logger.exception("Error while syncing '%s'", localdir)
+        # shuffle the order in which we sync repos, AND send a bit of random delay;
+        # this should improve on the hammering issue.
+        shuffle(tracked)
+        for localdir in tracked:
+            try:
+                repo = Repository(localdir)
+                delay = uniform(cls._SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MIN_SECONDS, cls._SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MAX_SECONDS)
+                sleep(delay)
+                repo.sync()
+                cls._logger.info("synced '%s'", localdir)
+            except Exception as e:
+                cls._logger.exception("Error while syncing '%s'", localdir)
 
     @classmethod
     def enable_foolscrate_cronjob(cls, foolscrate_executable=None, crontab_command=Crontab()):
@@ -212,8 +216,8 @@ class Repository(object):
         if not os.access(foolscrate_executable, os.R_OK | os.X_OK):
             raise ValueError("Check your install; invalid foolscrate executable: '{}' ".format(foolscrate_executable))
 
-        cron_start = "{} start\n".format(FOOLSCRATE_CRONTAB_COMMENT)
-        cron_end = "{} end\n".format(FOOLSCRATE_CRONTAB_COMMENT)
+        cron_start = "{} start\n".format(cls.FOOLSCRATE_CRONTAB_COMMENT)
+        cron_end = "{} end\n".format(cls.FOOLSCRATE_CRONTAB_COMMENT)
         try:
             old_crontab = crontab_command.cmd("-l")
         except CalledProcessError:
@@ -239,7 +243,7 @@ class Repository(object):
 
     @classmethod
     def cleanup_tracked(cls):
-        cfg = ConfigObj(FOOLSCRATE_CONFIG_PATH, unrepr=True, write_empty_values=True)
+        cfg = ConfigObj(cls.FOOLSCRATE_CONFIG_PATH, unrepr=True, write_empty_values=True)
         still_to_be_tracked = [directory for directory in cfg["track"] if exists(directory)]
         cfg["track"] = still_to_be_tracked
         cfg.write()

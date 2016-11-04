@@ -9,13 +9,17 @@ from tempfile import TemporaryDirectory, mkdtemp, NamedTemporaryFile
 import os, sys
 from subprocess import check_call, check_output, DEVNULL, call, CalledProcessError
 
-from foolscrate.foolscrate import Repository, GITIGNORE, CONFLICT_STRING, SyncError, FOOLSCRATE_CRONTAB_COMMENT
+from foolscrate.foolscrate import Repository,  SyncError
 from foolscrate.git import Git
 import logging
 
 from os.path import exists
 
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+
+GITIGNORE = Repository.GITIGNORE
+CONFLICT_STRING = Repository.CONFLICT_STRING
+FOOLSCRATE_CRONTAB_COMMENT = Repository.FOOLSCRATE_CRONTAB_COMMENT
 
 
 class TestRepository(TestCase):

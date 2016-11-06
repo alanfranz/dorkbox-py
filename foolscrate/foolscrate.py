@@ -49,10 +49,26 @@ class GlobalConfig(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._track_lock.release()
 
+class Tracker(object):
+    def __init__(self, global_config_factory):
+        self._global_config_factory = global_config_factory
+
+    def track(self, localdir):
+        with self._global_config_factory() as cfg:
+            # configobj doesn't support sets natively, only lists.
+            track = cfg.get("track", [])
+            track.append(localdir)
+            cfg["track"] = list(set(track))
+            cfg.write()
+
+    def untrack(self, localdir):
+        with self._global_config_factory() as cfg:
+            cfg.setdefault("track", []).remove(localdir)
+            cfg.write()
+
 
 
 class Repository(object):
-    _global_config_factory = GlobalConfig.factory(join(expanduser("~"), ".foolscrate.conf"), join(expanduser("~"), ".foolscrate.conf.lock"))
     FOOLSCRATE_CRONTAB_COMMENT = '# foolscrate sync cronjob'
 
     LOCKFILE_NAME = '.foolscrate.lock'
@@ -66,7 +82,7 @@ class Repository(object):
     _SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MAX_SECONDS = 4
 
     @classmethod
-    def create_new(cls, local_directory, remote_url):
+    def create_new(cls, local_directory, remote_url, global_config_factory=GlobalConfig.factory(join(expanduser("~"), ".foolscrate.conf"), join(expanduser("~"), ".foolscrate.conf.lock"))):
         cls._logger.info(
             "Will create new foolscrate-enabled repository in local directory. Remote %s should exist and be empty.",
             remote_url)
@@ -86,16 +102,16 @@ class Repository(object):
         return cls.configure_repository(git, local_directory)
 
     @classmethod
-    def configure_repository(cls, git, local_directory):
+    def configure_repository(cls, git, local_directory, global_config_factory=GlobalConfig.factory(join(expanduser("~"), ".foolscrate.conf"), join(expanduser("~"), ".foolscrate.conf.lock"))):
         client_id = cls.configure_client_id(git)
         cls._align_client_ref_to_master(git, client_id)
         git.cmd("push", "-u", "foolscrate", "master", client_id)
-        repo = Repository(local_directory)
+        repo = Repository(local_directory, global_config_factory)
         repo.track()
         return repo
 
     @classmethod
-    def connect_existing(cls, local_directory, remote_url):
+    def connect_existing(cls, local_directory, remote_url, global_config_factory=GlobalConfig.factory(join(expanduser("~"), ".foolscrate.conf"), join(expanduser("~"), ".foolscrate.conf.lock"))):
         cls._logger.info(
             "Will create new git repo in local directory and connect to remote existing foolscrate repository %s",
             remote_url)
@@ -110,7 +126,7 @@ class Repository(object):
 
         return cls.configure_repository(git, local_directory)
 
-    def __init__(self, local_directory):
+    def __init__(self, local_directory, global_config_factory):
         abs_local_directory = abspath(local_directory)
 
         if not (
@@ -127,6 +143,7 @@ class Repository(object):
         self._conflict_string = join(abs_local_directory, self.CONFLICT_STRING)
         self.client_id = self._git.cmd("config", "--local", "--get", "foolscrate.client-id").strip()
         self._sync_lock = FileLock(join(self.localdir, self.LOCKFILE_NAME))
+        self._global_config_factory = global_config_factory
 
     def sync(self):
         # TODO: probably we should sleep a little between merging attempts
@@ -171,18 +188,18 @@ class Repository(object):
 
             self._logger.info("Sync succeeded")
 
-    def track(self):
-        with self._global_config_factory() as cfg:
-            # configobj doesn't support sets natively, only lists.
-            track = cfg.get("track", [])
-            track.append(self.localdir)
-            cfg["track"] = list(set(track))
-            cfg.write()
-
-    def untrack(self):
-        with self._global_config_factory() as cfg:
-            cfg.setdefault("track", []).remove(self.localdir)
-            cfg.write()
+    # def track(self):
+    #     with self._global_config_factory() as cfg:
+    #         # configobj doesn't support sets natively, only lists.
+    #         track = cfg.get("track", [])
+    #         track.append(self.localdir)
+    #         cfg["track"] = list(set(track))
+    #         cfg.write()
+    #
+    # def untrack(self):
+    #     with self._global_config_factory() as cfg:
+    #         cfg.setdefault("track", []).remove(self.localdir)
+    #         cfg.write()
 
     @classmethod
     def configure_client_id(cls, git):
@@ -195,6 +212,7 @@ class Repository(object):
     def _align_client_ref_to_master(cls, git, client_id):
         return git.cmd('update-ref', "refs/heads/{}".format(client_id), 'master')
 
+    # TODO: fix, use tracker instead
     @classmethod
     def sync_all_tracked(cls):
         with cls._global_config_factory() as cfg:

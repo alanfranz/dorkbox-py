@@ -8,6 +8,7 @@ from shlex import quote as shell_quote
 from socket import gethostname
 from subprocess import check_output, CalledProcessError, Popen, PIPE
 from random import shuffle, uniform
+from functools import partial
 
 from configobj import ConfigObj
 from filelock import FileLock
@@ -32,9 +33,26 @@ class Crontab(object):
     def cmd(self, *args):
         return check_output([self._crontab_command] + list(args), universal_newlines=True, stderr=PIPE)
 
+class GlobalConfig(object):
+    @classmethod
+    def factory(cls, global_config_file_path, global_config_lock_path):
+        return partial(cls, global_config_file_path, global_config_lock_path)
+
+    def __init__(self, global_config_file_path, global_config_lock_path):
+        self._global_config_file_path = global_config_file_path
+        self._track_lock = FileLock(global_config_lock_path)
+
+    def __enter__(self):
+        self._track_lock.acquire(timeout=60)
+        return ConfigObj(self._global_config_file_path, unrepr=True, write_empty_values=True)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._track_lock.release()
+
+
+
 class Repository(object):
-    global_config_path = join(expanduser("~"), ".foolscrate.conf")
-    global_config_lock_path = global_config_path + '.lock'
+    _global_config_factory = GlobalConfig.factory(join(expanduser("~"), ".foolscrate.conf"), join(expanduser("~"), ".foolscrate.conf.lock"))
     FOOLSCRATE_CRONTAB_COMMENT = '# foolscrate sync cronjob'
 
     LOCKFILE_NAME = '.foolscrate.lock'
@@ -42,7 +60,6 @@ class Repository(object):
     GITIGNORE = '.gitignore'
 
     _logger = logging.getLogger("Repository")
-    _track_lock = FileLock(global_config_lock_path)
 
     _SLEEP_BETWEEN_MERGE_ATTEMPTS_SECONDS = 1
     _SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MIN_SECONDS = 1
@@ -155,8 +172,7 @@ class Repository(object):
             self._logger.info("Sync succeeded")
 
     def track(self):
-        with self._track_lock.acquire(timeout=60):
-            cfg = ConfigObj(self.global_config_path, unrepr=True, write_empty_values=True)
+        with self._global_config_factory() as cfg:
             # configobj doesn't support sets natively, only lists.
             track = cfg.get("track", [])
             track.append(self.localdir)
@@ -164,8 +180,7 @@ class Repository(object):
             cfg.write()
 
     def untrack(self):
-        with self._track_lock.acquire(timeout=60):
-            cfg = ConfigObj(self.global_config_path, unrepr=True, write_empty_values=True)
+        with self._global_config_factory() as cfg:
             cfg.setdefault("track", []).remove(self.localdir)
             cfg.write()
 
@@ -182,10 +197,9 @@ class Repository(object):
 
     @classmethod
     def sync_all_tracked(cls):
-        with cls._track_lock.acquire(timeout=60):
+        with cls._global_config_factory() as cfg:
             cls._logger.debug("Now syncing all tracked repositories")
             try:
-                cfg = ConfigObj(cls.global_config_path, unrepr=True, write_empty_values=True)
                 tracked = cfg.get("track", [])
             except FileNotFoundError as e:
                 # TODO: check whether it really is meaningful with configobj
@@ -243,10 +257,10 @@ class Repository(object):
 
     @classmethod
     def cleanup_tracked(cls):
-        cfg = ConfigObj(cls.global_config_path, unrepr=True, write_empty_values=True)
-        still_to_be_tracked = [directory for directory in cfg["track"] if exists(directory)]
-        cfg["track"] = still_to_be_tracked
-        cfg.write()
+        with cls._global_config_factory() as cfg:
+            still_to_be_tracked = [directory for directory in cfg["track"] if exists(directory)]
+            cfg["track"] = still_to_be_tracked
+            cfg.write()
 
     @classmethod
     def test(cls):

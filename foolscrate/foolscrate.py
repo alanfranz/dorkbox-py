@@ -157,8 +157,8 @@ class Repository(object):
 
                 try:
                     self._git.cmd("push", "foolscrate", "master", self.client_id)
-                except Exception as e:
-                    self._logger.exception("Error while pushing")
+                except CalledProcessError as e:
+                    self._logger.exception("Error while pushing:\n%s\n%s\n", e.stdout, e.stderr)
                     sleep(self._SLEEP_BETWEEN_MERGE_ATTEMPTS_SECONDS)
                     continue
                 break
@@ -247,7 +247,7 @@ class Repository(object):
         # at least
         new_crontab = old_crontab + \
                 cron_start + \
-                "*/5 * * * * LANG={} {} sync_all_tracked\n".format(shell_quote(_find_suitable_utf8_locale()), shell_quote(foolscrate_executable)) + \
+                "*/1 * * * * LANG={} {} sync_all_tracked\n".format(shell_quote(_find_suitable_utf8_locale()), shell_quote(foolscrate_executable)) + \
                       cron_end
 
         with NamedTemporaryFile(prefix="foolscrate-temp", mode="w+", encoding="utf-8") as tmp:

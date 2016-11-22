@@ -11,7 +11,7 @@ from random import shuffle, uniform
 from functools import partial
 
 from configobj import ConfigObj
-from filelock import FileLock
+from filelock import FileLock, Timeout
 from foolscrate.git import Git
 from os import access, R_OK, W_OK, X_OK
 from os.path import expanduser, join, abspath, exists, dirname
@@ -196,28 +196,36 @@ class Repository(object):
         return git.cmd('update-ref', "refs/heads/{}".format(client_id), 'master')
 
     @classmethod
-    def sync_all_tracked(cls):
-        with cls._global_config_factory() as cfg:
-            cls._logger.debug("Now syncing all tracked repositories")
-            try:
-                tracked = cfg.get("track", [])
-            except FileNotFoundError as e:
-                # TODO: check whether it really is meaningful with configobj
-                cls._logger.debug("file not found while opening foolscrate config file", e)
-                return
+    def sync_all_tracked(cls, lock_filepath=".foolscrate.sync_all_tracked.lock"):
+        lock = FileLock(join(expanduser("~"), lock_filepath))
+        try:
+            lock.acquire(timeout=1)
+            with cls._global_config_factory() as cfg:
+                cls._logger.debug("Now syncing all tracked repositories")
+                try:
+                    tracked = cfg.get("track", [])
+                except FileNotFoundError as e:
+                    # TODO: check whether it really is meaningful with configobj
+                    cls._logger.debug("file not found while opening foolscrate config file", e)
+                    return
 
-        # shuffle the order in which we sync repos, AND send a bit of random delay;
-        # this should improve on the hammering issue.
-        shuffle(tracked)
-        for localdir in tracked:
-            try:
-                repo = Repository(localdir)
-                delay = uniform(cls._SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MIN_SECONDS, cls._SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MAX_SECONDS)
-                sleep(delay)
-                repo.sync()
-                cls._logger.info("synced '%s'", localdir)
-            except Exception as e:
-                cls._logger.exception("Error while syncing '%s'", localdir)
+            # shuffle the order in which we sync repos, AND send a bit of random delay;
+            # this should improve on the hammering issue.
+            shuffle(tracked)
+            for localdir in tracked:
+                try:
+                    repo = Repository(localdir)
+                    delay = uniform(cls._SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MIN_SECONDS,
+                                    cls._SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MAX_SECONDS)
+                    sleep(delay)
+                    repo.sync()
+                    cls._logger.info("synced '%s'", localdir)
+                except Exception as e:
+                    cls._logger.exception("Error while syncing '%s'", localdir)
+        except Timeout:
+            cls._logger.debug("Somebody is already syncing all tracked repos; execution skipped.")
+        finally:
+            lock.release()
 
     @classmethod
     def enable_foolscrate_cronjob(cls, foolscrate_executable=None, crontab_command=Crontab()):

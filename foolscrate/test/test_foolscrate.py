@@ -5,7 +5,7 @@ from shutil import rmtree
 
 from os.path import join
 
-from tempfile import TemporaryDirectory, mkdtemp, NamedTemporaryFile
+from tempfile import TemporaryDirectory, mkdtemp, NamedTemporaryFile, mktemp
 import os, sys
 from subprocess import check_call, check_output, DEVNULL, call, CalledProcessError
 
@@ -21,10 +21,10 @@ GITIGNORE = Repository.GITIGNORE
 CONFLICT_STRING = Repository.CONFLICT_STRING
 FOOLSCRATE_CRONTAB_COMMENT = Repository.FOOLSCRATE_CRONTAB_COMMENT
 
-
 class TestRepository(TestCase):
     def setUp(self):
         self._tmp = TemporaryDirectory()
+
         self._old = os.getcwd()
         os.chdir(self._tmp.name)
 
@@ -68,12 +68,15 @@ class TestSync(TestCase):
         self.second_repo = Repository.connect_existing(self.second_client_dir, self.remote_repo_dir)
         self.third_repo = Repository.connect_existing(self.third_client_dir, self.remote_repo_dir)
 
+        self.sync_all_lock = mktemp()
+
     def tearDown(self):
         rmtree(self.remote_repo_dir)
         rmtree(self.first_client_dir)
         rmtree(self.second_client_dir)
         rmtree(self.third_client_dir)
         Repository.cleanup_tracked()
+        os.unlink(self.sync_all_lock)
 
     def test_syncing_between_two_clients(self):
         with open(join(self.first_client_dir, "something"), mode="w", encoding="ascii") as f:
@@ -100,8 +103,8 @@ class TestSync(TestCase):
 
         # we need to sync twice, since the first sync will send our content from 1st upstream,
         # and the second will pull content from upstream to 2n repo
-        Repository.sync_all_tracked()
-        Repository.sync_all_tracked()
+        Repository.sync_all_tracked(lock_filepath=self.sync_all_lock)
+        Repository.sync_all_tracked(lock_filepath=self.sync_all_lock)
 
         with open(join(self.second_client_dir, "something"), mode="r", encoding="ascii") as f:
             self.assertEqual("asd", f.read())
@@ -110,8 +113,8 @@ class TestSync(TestCase):
             f.write("xyz")
 
         # same as above
-        Repository.sync_all_tracked()
-        Repository.sync_all_tracked()
+        Repository.sync_all_tracked(lock_filepath=self.sync_all_lock)
+        Repository.sync_all_tracked(lock_filepath=self.sync_all_lock)
 
         with open(join(self.first_client_dir, "something"), mode="r", encoding="ascii") as f:
             self.assertEqual("asdxyz", f.read())
@@ -120,7 +123,7 @@ class TestSync(TestCase):
         with open(join(self.first_client_dir, "something"), mode="w", encoding="ascii") as f:
             f.write("asd")
 
-        Repository.sync_all_tracked()
+        Repository.sync_all_tracked(lock_filepath=self.sync_all_lock)
 
         with open(join(self.first_client_dir, "something"), mode="w", encoding="ascii") as f:
             f.write("xyzxyz")
@@ -131,7 +134,7 @@ class TestSync(TestCase):
             # will result in a sync conflict for the 2nd repo
             f.write("kkkkkk")
 
-        Repository.sync_all_tracked()
+        Repository.sync_all_tracked(lock_filepath=self.sync_all_lock)
 
         with open(join(self.third_client_dir, "something"), mode="r", encoding="ascii") as f:
             # will result in a sync conflict
@@ -183,7 +186,7 @@ class TestSync(TestCase):
         with open(join(self.first_client_dir, "something"), mode="w", encoding="ascii") as f:
             f.write("asd")
 
-        Repository.sync_all_tracked()
+        Repository.sync_all_tracked(lock_filepath=self.sync_all_lock)
 
         self.assertFalse(exists(join(self.second_client_dir, "something")))
 

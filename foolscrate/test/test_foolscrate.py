@@ -5,6 +5,7 @@ from shutil import rmtree
 
 from os.path import join, expanduser
 from os import makedirs
+import contextlib
 
 from tempfile import TemporaryDirectory, mkdtemp, NamedTemporaryFile, mktemp
 import os, sys
@@ -86,7 +87,8 @@ class TestSync(TestCase):
         rmtree(self.second_client_dir)
         rmtree(self.third_client_dir)
         Repository.cleanup_tracked()
-        os.unlink(self.sync_all_lock)
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(self.sync_all_lock)
 
     def test_syncing_between_two_clients(self):
         with open(join(self.first_client_dir, "something"), mode="w", encoding="ascii") as f:

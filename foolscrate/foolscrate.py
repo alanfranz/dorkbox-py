@@ -110,7 +110,7 @@ class Repository(object):
 
         return cls.configure_repository(git, local_directory)
 
-    def __init__(self, local_directory):
+    def __init__(self, local_directory, sync_lock_path=None):
         abs_local_directory = abspath(local_directory)
 
         if not (
@@ -126,7 +126,8 @@ class Repository(object):
         self.localdir = abs_local_directory
         self._conflict_string = join(abs_local_directory, self.CONFLICT_STRING)
         self.client_id = self._git.cmd("config", "--local", "--get", "foolscrate.client-id").strip()
-        self._sync_lock = FileLock(join(self.localdir, self.LOCKFILE_NAME))
+        sync_lock_path = sync_lock_path or join(self.localdir, self.LOCKFILE_NAME)
+        self._sync_lock = FileLock(sync_lock_path)
 
     def sync(self):
         # TODO: probably we should sleep a little between merging attempts
@@ -196,8 +197,8 @@ class Repository(object):
         return git.cmd('update-ref', "refs/heads/{}".format(client_id), 'master')
 
     @classmethod
-    def sync_all_tracked(cls, lock_filepath=".foolscrate.sync_all_tracked.lock"):
-        lock = FileLock(join(expanduser("~"), lock_filepath))
+    def sync_all_tracked(cls, lock_filepath=join(expanduser("~"), ".foolscrate.sync_all_tracked.lock")):
+        lock = FileLock(lock_filepath)
         try:
             lock.acquire(timeout=1)
             with cls._global_config_factory() as cfg:

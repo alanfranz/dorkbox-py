@@ -3,13 +3,14 @@ from unittest import TestCase
 
 from shutil import rmtree
 
-from os.path import join
+from os.path import join, expanduser
+from os import makedirs
 
 from tempfile import TemporaryDirectory, mkdtemp, NamedTemporaryFile, mktemp
 import os, sys
 from subprocess import check_call, check_output, DEVNULL, call, CalledProcessError
 
-from foolscrate.foolscrate import Repository,  SyncError
+from foolscrate.foolscrate import Repository,  SyncError, GlobalConfig
 from foolscrate.git import Git
 import logging
 
@@ -24,14 +25,23 @@ FOOLSCRATE_CRONTAB_COMMENT = Repository.FOOLSCRATE_CRONTAB_COMMENT
 class TestRepository(TestCase):
     def setUp(self):
         self._tmp = TemporaryDirectory()
+        confroot = join(self._tmp.name, "confroot")
+        makedirs(confroot)
+        reporoot = join(self._tmp.name, "reporoot")
+        makedirs(reporoot)
+
+        # I hate this kind of global monkeypatching, but I don't want to change too many things right now.
+        self._savecfg = Repository._global_config_factory
+        Repository._global_config_factory = GlobalConfig.factory(join(confroot, ".foolscrate.conf"), join(confroot, ".foolscrate.conf.lock"))
 
         self._old = os.getcwd()
-        os.chdir(self._tmp.name)
+        os.chdir(reporoot)
 
     def tearDown(self):
         os.chdir(self._old)
-        self._tmp.cleanup()
         Repository.cleanup_tracked()
+        Repository._global_config_factory = self._savecfg
+        self._tmp.cleanup()
 
     def test_repository_create_creates_a_new_git_repo_with_proper_ignore_file(self):
         with TemporaryDirectory() as gitrepodir:

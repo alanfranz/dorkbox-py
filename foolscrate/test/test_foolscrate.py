@@ -67,7 +67,12 @@ class TestRepository(TestCase):
 
 class TestSync(TestCase):
     def setUp(self):
-        Repository.cleanup_tracked()
+
+        # I hate this kind of global monkeypatching, but I don't want to change too many things right now.
+        self._conftmp = TemporaryDirectory()
+        self._savecfg = Repository._global_config_factory
+        Repository._global_config_factory = GlobalConfig.factory(join(self._conftmp.name, ".foolscrate.conf"), join(self._conftmp.name, ".foolscrate.conf.lock"))
+
         self.remote_repo_dir = mkdtemp()
         check_call(["git", "init", "--bare", self.remote_repo_dir])
 
@@ -86,9 +91,10 @@ class TestSync(TestCase):
         rmtree(self.first_client_dir)
         rmtree(self.second_client_dir)
         rmtree(self.third_client_dir)
-        Repository.cleanup_tracked()
         with contextlib.suppress(FileNotFoundError):
             os.unlink(self.sync_all_lock)
+        Repository._global_config_factory = self._savecfg
+        self._conftmp.cleanup()
 
     def test_syncing_between_two_clients(self):
         with open(join(self.first_client_dir, "something"), mode="w", encoding="ascii") as f:

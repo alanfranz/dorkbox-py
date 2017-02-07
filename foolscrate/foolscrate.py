@@ -83,11 +83,11 @@ class Repository(object):
         git.cmd("add", cls.GITIGNORE)
         git.cmd("commit", "-m", "enabling foolscrate")
 
-        return cls.configure_repository(git, local_directory)
+        return cls._configure_repository(git, local_directory)
 
     @classmethod
-    def configure_repository(cls, git, local_directory):
-        client_id = cls.configure_client_id(git)
+    def _configure_repository(cls, git, local_directory):
+        client_id = cls._configure_client_id(git)
         cls._align_client_ref_to_master(git, client_id)
         git.cmd("push", "-u", "foolscrate", "master", client_id)
         repo = Repository(local_directory)
@@ -108,7 +108,7 @@ class Repository(object):
         git.cmd("fetch", "--all")
         git.cmd("checkout", "master")
 
-        return cls.configure_repository(git, local_directory)
+        return cls._configure_repository(git, local_directory)
 
     def __init__(self, local_directory, sync_lock_path=None):
         abs_local_directory = abspath(local_directory)
@@ -186,7 +186,7 @@ class Repository(object):
             cfg.write()
 
     @classmethod
-    def configure_client_id(cls, git):
+    def _configure_client_id(cls, git):
         client_id = 'foolscrate-' + gethostname() + "-" + "".join(
             choice(string.ascii_lowercase + string.digits) for _ in range(5))
         git.cmd('config', '--local', 'foolscrate.client-id', client_id)

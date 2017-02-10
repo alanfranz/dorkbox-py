@@ -11,7 +11,7 @@ from tempfile import TemporaryDirectory, mkdtemp, NamedTemporaryFile, mktemp
 import os, sys
 from subprocess import check_call, check_output, DEVNULL, call, CalledProcessError
 
-from foolscrate.foolscrate import Repository,  SyncError, GlobalConfig
+from foolscrate.foolscrate import Repository,  SyncError, ConfigBroker
 from foolscrate.git import Git
 import logging
 
@@ -31,23 +31,19 @@ class TestRepository(TestCase):
         reporoot = join(self._tmp.name, "reporoot")
         makedirs(reporoot)
 
-        # I hate this kind of global monkeypatching, but I don't want to change too many things right now.
-        self._savecfg = Repository._global_config_factory
-        Repository._global_config_factory = GlobalConfig.factory(join(confroot, ".foolscrate.conf"), join(confroot, ".foolscrate.conf.lock"))
+        self.config_broker = ConfigBroker(join(confroot, ".foolscrate.conf"), join(confroot, ".foolscrate.conf.lock"))
 
         self._old = os.getcwd()
         os.chdir(reporoot)
 
     def tearDown(self):
         os.chdir(self._old)
-        Repository.cleanup_tracked()
-        Repository._global_config_factory = self._savecfg
         self._tmp.cleanup()
 
     def test_repository_create_creates_a_new_git_repo_with_proper_ignore_file(self):
         with TemporaryDirectory() as gitrepodir:
             check_call(["git", "init", "--bare", gitrepodir])
-            Repository.create_new(os.path.abspath("."), gitrepodir)
+            Repository.create_new(os.path.abspath("."), gitrepodir, config_broker=self.config_broker)
             self.assertTrue(os.path.exists("./{}".format(GITIGNORE)))
 
     def test_when_connection_new_foolscrate_repo_both_references_exist(self):
@@ -55,9 +51,9 @@ class TestRepository(TestCase):
             check_call(["git", "init", "--bare", git_repo_dir])
 
             with TemporaryDirectory() as first_repo_dir:
-                first_repo = Repository.create_new(first_repo_dir, git_repo_dir)
+                first_repo = Repository.create_new(first_repo_dir, git_repo_dir, config_broker=self.config_broker)
                 with TemporaryDirectory() as second_repo_dir:
-                    second_repo = Repository.connect_existing(second_repo_dir, git_repo_dir)
+                    second_repo = Repository.connect_existing(second_repo_dir, git_repo_dir, config_broker=self.config_broker)
                     all_branches = check_output(["git", "--work-tree={}".format(second_repo_dir),
                                                  "--git-dir={}".format(os.path.join(second_repo_dir, ".git")),
                                                  "branch", "-a"], universal_newlines=True)
@@ -70,8 +66,7 @@ class TestSync(TestCase):
 
         # I hate this kind of global monkeypatching, but I don't want to change too many things right now.
         self._conftmp = TemporaryDirectory()
-        self._savecfg = Repository._global_config_factory
-        Repository._global_config_factory = GlobalConfig.factory(join(self._conftmp.name, ".foolscrate.conf"), join(self._conftmp.name, ".foolscrate.conf.lock"))
+        self.config_broker = ConfigBroker(join(self._conftmp.name, ".foolscrate.conf"), join(self._conftmp.name, ".foolscrate.conf.lock"))
 
         self.remote_repo_dir = mkdtemp()
         check_call(["git", "init", "--bare", self.remote_repo_dir])
@@ -80,9 +75,9 @@ class TestSync(TestCase):
         self.second_client_dir = mkdtemp()
         self.third_client_dir = mkdtemp()
 
-        self.first_repo = Repository.create_new(self.first_client_dir, self.remote_repo_dir)
-        self.second_repo = Repository.connect_existing(self.second_client_dir, self.remote_repo_dir)
-        self.third_repo = Repository.connect_existing(self.third_client_dir, self.remote_repo_dir)
+        self.first_repo = Repository.create_new(self.first_client_dir, self.remote_repo_dir, config_broker=self.config_broker)
+        self.second_repo = Repository.connect_existing(self.second_client_dir, self.remote_repo_dir, config_broker=self.config_broker)
+        self.third_repo = Repository.connect_existing(self.third_client_dir, self.remote_repo_dir, config_broker=self.config_broker)
 
         self.sync_all_lock = mktemp()
 

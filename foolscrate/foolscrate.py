@@ -33,11 +33,7 @@ class Crontab(object):
     def cmd(self, *args):
         return check_output([self._crontab_command] + list(args), universal_newlines=True, stderr=PIPE)
 
-class GlobalConfig(object):
-    @classmethod
-    def factory(cls, global_config_file_path, global_config_lock_path):
-        return partial(cls, global_config_file_path, global_config_lock_path)
-
+class ConfigBroker(object):
     def __init__(self, global_config_file_path, global_config_lock_path):
         self._global_config_file_path = global_config_file_path
         self._track_lock = FileLock(global_config_lock_path)
@@ -49,10 +45,11 @@ class GlobalConfig(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._track_lock.release()
 
+    def provide(self):
+        return self
 
 
 class Repository(object):
-    _global_config_factory = GlobalConfig.factory(join(expanduser("~"), ".foolscrate.conf"), join(expanduser("~"), ".foolscrate.conf.lock"))
     FOOLSCRATE_CRONTAB_COMMENT = '# foolscrate sync cronjob'
 
     LOCKFILE_NAME = '.foolscrate.lock'
@@ -62,11 +59,10 @@ class Repository(object):
     _logger = logging.getLogger("Repository")
 
     _SLEEP_BETWEEN_MERGE_ATTEMPTS_SECONDS = 1
-    _SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MIN_SECONDS = 1
-    _SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MAX_SECONDS = 4
+
 
     @classmethod
-    def create_new(cls, local_directory, remote_url):
+    def create_new(cls, local_directory, remote_url, config_broker=ConfigBroker(join(expanduser("~"), ".foolscrate.conf"), join(expanduser("~"), ".foolscrate.conf.lock"))):
         cls._logger.info(
             "Will create new foolscrate-enabled repository in local directory. Remote %s should exist and be empty.",
             remote_url)
@@ -83,19 +79,19 @@ class Repository(object):
         git.cmd("add", cls.GITIGNORE)
         git.cmd("commit", "-m", "enabling foolscrate")
 
-        return cls._configure_repository(git, local_directory)
+        return cls._configure_repository(git, local_directory, config_broker)
 
     @classmethod
-    def _configure_repository(cls, git, local_directory):
+    def _configure_repository(cls, git, local_directory, config_broker):
         client_id = cls._configure_client_id(git)
         cls._align_client_ref_to_master(git, client_id)
         git.cmd("push", "-u", "foolscrate", "master", client_id)
-        repo = Repository(local_directory)
+        repo = cls(local_directory, config_broker=config_broker)
         repo.track()
         return repo
 
     @classmethod
-    def connect_existing(cls, local_directory, remote_url):
+    def connect_existing(cls, local_directory, remote_url, config_broker=ConfigBroker(join(expanduser("~"), ".foolscrate.conf"), join(expanduser("~"), ".foolscrate.conf.lock"))):
         cls._logger.info(
             "Will create new git repo in local directory and connect to remote existing foolscrate repository %s",
             remote_url)
@@ -108,9 +104,10 @@ class Repository(object):
         git.cmd("fetch", "--all")
         git.cmd("checkout", "master")
 
-        return cls._configure_repository(git, local_directory)
+        return cls._configure_repository(git, local_directory, config_broker)
 
-    def __init__(self, local_directory, sync_lock_path=None):
+    def __init__(self, local_directory, sync_lock_path=None, config_broker=ConfigBroker(join(expanduser("~"), ".foolscrate.conf"), join(expanduser("~"), ".foolscrate.conf.lock"))):
+
         abs_local_directory = abspath(local_directory)
 
         if not (
@@ -128,6 +125,7 @@ class Repository(object):
         self.client_id = self._git.cmd("config", "--local", "--get", "foolscrate.client-id").strip()
         sync_lock_path = sync_lock_path or join(self.localdir, self.LOCKFILE_NAME)
         self._sync_lock = FileLock(sync_lock_path)
+        self._config_broker = config_broker
 
     def sync(self):
         # TODO: probably we should sleep a little between merging attempts
@@ -173,7 +171,7 @@ class Repository(object):
             self._logger.info("Sync succeeded")
 
     def track(self):
-        with self._global_config_factory() as cfg:
+        with self._config_broker.provide() as cfg:
             # configobj doesn't support sets natively, only lists.
             track = cfg.get("track", [])
             track.append(self.localdir)
@@ -181,7 +179,7 @@ class Repository(object):
             cfg.write()
 
     def untrack(self):
-        with self._global_config_factory() as cfg:
+        with self._config_broker.provide() as cfg:
             cfg.setdefault("track", []).remove(self.localdir)
             cfg.write()
 
@@ -196,37 +194,6 @@ class Repository(object):
     def _align_client_ref_to_master(cls, git, client_id):
         return git.cmd('update-ref', "refs/heads/{}".format(client_id), 'master')
 
-    @classmethod
-    def sync_all_tracked(cls, lock_filepath=join(expanduser("~"), ".foolscrate.sync_all_tracked.lock")):
-        lock = FileLock(lock_filepath)
-        try:
-            lock.acquire(timeout=1)
-            with cls._global_config_factory() as cfg:
-                cls._logger.debug("Now syncing all tracked repositories")
-                try:
-                    tracked = cfg.get("track", [])
-                except FileNotFoundError as e:
-                    # TODO: check whether it really is meaningful with configobj
-                    cls._logger.debug("file not found while opening foolscrate config file", e)
-                    return
-
-            # shuffle the order in which we sync repos, AND send a bit of random delay;
-            # this should improve on the hammering issue.
-            shuffle(tracked)
-            for localdir in tracked:
-                try:
-                    repo = Repository(localdir)
-                    delay = uniform(cls._SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MIN_SECONDS,
-                                    cls._SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MAX_SECONDS)
-                    sleep(delay)
-                    repo.sync()
-                    cls._logger.info("synced '%s'", localdir)
-                except Exception as e:
-                    cls._logger.exception("Error while syncing '%s'", localdir)
-        except Timeout:
-            cls._logger.debug("Somebody is already syncing all tracked repos; execution skipped.")
-        finally:
-            lock.release()
 
     @classmethod
     def enable_foolscrate_cronjob(cls, foolscrate_executable=None, crontab_command=Crontab()):
@@ -265,16 +232,56 @@ class Repository(object):
             crontab_command.cmd(tmp.name)
 
     @classmethod
-    def cleanup_tracked(cls):
-        with cls._global_config_factory() as cfg:
-            still_to_be_tracked = [directory for directory in cfg["track"] if exists(directory)]
-            cfg["track"] = still_to_be_tracked
-            cfg.write()
-
-    @classmethod
     def test(cls):
         raise NotImplementedError("not yet implemented")
 
+
+class SyncAll(object):
+    _SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MIN_SECONDS = 1
+    _SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MAX_SECONDS = 4
+
+    _logger = logging.getLogger("SyncAll")
+
+    def __init__(self, config_broker, syncall_lock_filepath=join(expanduser("~"), ".foolscrate.sync_all_tracked.lock")):
+        self._config_broker = config_broker
+        self._syncall_lock_filepath = syncall_lock_filepath
+
+    def sync_all_tracked(self):
+        lock = FileLock(self._syncall_lock_filepath)
+        try:
+            lock.acquire(timeout=1)
+            with self._config_broker.provide() as cfg:
+                self._logger.debug("Now syncing all tracked repositories")
+                try:
+                    tracked = cfg.get("track", [])
+                except FileNotFoundError as e:
+                    # TODO: check whether it really is meaningful with configobj
+                    self._logger.debug("file not found while opening foolscrate config file", e)
+                    return
+
+            # shuffle the order in which we sync repos, AND send a bit of random delay;
+            # this should improve on the hammering issue.
+            shuffle(tracked)
+            for localdir in tracked:
+                try:
+                    repo = Repository(localdir)
+                    delay = uniform(self._SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MIN_SECONDS,
+                                    self._SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MAX_SECONDS)
+                    sleep(delay)
+                    repo.sync()
+                    self._logger.info("synced '%s'", localdir)
+                except Exception as e:
+                    self._logger.exception("Error while syncing '%s'", localdir)
+        except Timeout:
+            self._logger.debug("Somebody is already syncing all tracked repos; execution skipped.")
+        finally:
+            lock.release()
+
+    def cleanup_tracked(self):
+        with self._config_broker() as cfg:
+            still_to_be_tracked = [directory for directory in cfg["track"] if exists(directory)]
+            cfg["track"] = still_to_be_tracked
+            cfg.write()
 
 # this is to workaround click madness.. hope to remove it in the future.
 # it actually mimics what click._unicodefun itself does..

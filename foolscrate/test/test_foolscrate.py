@@ -63,8 +63,6 @@ class TestRepository(TestCase):
 
 class TestSync(TestCase):
     def setUp(self):
-
-        # I hate this kind of global monkeypatching, but I don't want to change too many things right now.
         self._conftmp = TemporaryDirectory()
         self.config_broker = ConfigBroker(join(self._conftmp.name, ".foolscrate.conf"), join(self._conftmp.name, ".foolscrate.conf.lock"))
 

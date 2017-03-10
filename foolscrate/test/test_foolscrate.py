@@ -11,7 +11,7 @@ from tempfile import TemporaryDirectory, mkdtemp, NamedTemporaryFile, mktemp
 import os, sys
 from subprocess import check_call, check_output, DEVNULL, call, CalledProcessError
 
-from foolscrate.foolscrate import Repository,  SyncError, ConfigBroker
+from foolscrate.foolscrate import Repository,  SyncError, ConfigBroker, SyncAll
 from foolscrate.git import Git
 import logging
 
@@ -88,7 +88,6 @@ class TestSync(TestCase):
         rmtree(self.third_client_dir)
         with contextlib.suppress(FileNotFoundError):
             os.unlink(self.sync_all_lock)
-        Repository._global_config_factory = self._savecfg
         self._conftmp.cleanup()
 
     def test_syncing_between_two_clients(self):

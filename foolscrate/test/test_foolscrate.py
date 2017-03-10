@@ -78,6 +78,7 @@ class TestSync(TestCase):
         self.third_repo = Repository.connect_existing(self.third_client_dir, self.remote_repo_dir, config_broker=self.config_broker)
 
         self.sync_all_lock = mktemp()
+        self.sync_all = SyncAll(self.config_broker, syncall_lock_filepath=self.sync_all_lock)
 
     def tearDown(self):
         rmtree(self.remote_repo_dir)
@@ -113,8 +114,8 @@ class TestSync(TestCase):
 
         # we need to sync twice, since the first sync will send our content from 1st upstream,
         # and the second will pull content from upstream to 2n repo
-        Repository.sync_all_tracked(lock_filepath=self.sync_all_lock)
-        Repository.sync_all_tracked(lock_filepath=self.sync_all_lock)
+        self.sync_all.sync_all_tracked()
+        self.sync_all.sync_all_tracked()
 
         with open(join(self.second_client_dir, "something"), mode="r", encoding="ascii") as f:
             self.assertEqual("asd", f.read())
@@ -123,8 +124,8 @@ class TestSync(TestCase):
             f.write("xyz")
 
         # same as above
-        Repository.sync_all_tracked(lock_filepath=self.sync_all_lock)
-        Repository.sync_all_tracked(lock_filepath=self.sync_all_lock)
+        self.sync_all.sync_all_tracked()
+        self.sync_all.sync_all_tracked()
 
         with open(join(self.first_client_dir, "something"), mode="r", encoding="ascii") as f:
             self.assertEqual("asdxyz", f.read())
@@ -133,7 +134,7 @@ class TestSync(TestCase):
         with open(join(self.first_client_dir, "something"), mode="w", encoding="ascii") as f:
             f.write("asd")
 
-        Repository.sync_all_tracked(lock_filepath=self.sync_all_lock)
+        self.sync_all.sync_all_tracked()
 
         with open(join(self.first_client_dir, "something"), mode="w", encoding="ascii") as f:
             f.write("xyzxyz")
@@ -144,7 +145,7 @@ class TestSync(TestCase):
             # will result in a sync conflict for the 2nd repo
             f.write("kkkkkk")
 
-        Repository.sync_all_tracked(lock_filepath=self.sync_all_lock)
+        self.sync_all.sync_all_tracked()
 
         with open(join(self.third_client_dir, "something"), mode="r", encoding="ascii") as f:
             # will result in a sync conflict
@@ -196,7 +197,7 @@ class TestSync(TestCase):
         with open(join(self.first_client_dir, "something"), mode="w", encoding="ascii") as f:
             f.write("asd")
 
-        Repository.sync_all_tracked(lock_filepath=self.sync_all_lock)
+        self.sync_all.sync_all_tracked()
 
         self.assertFalse(exists(join(self.second_client_dir, "something")))
 

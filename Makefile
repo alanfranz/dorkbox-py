@@ -15,7 +15,7 @@ PREFIX ?= "/tmp/local/foolscrate"
 TEST_PATTERN ?= "test_*.py"
 
 devenv: setup.py requirements.txt Makefile devenv/bin/python
-	touch -t 197001010000 devenv
+	touch -t 197001020000 devenv
 	source devenv/bin/activate && python devenv/bin/pip install -r requirements.txt && python devenv/bin/pip install --editable .
 	touch devenv
 

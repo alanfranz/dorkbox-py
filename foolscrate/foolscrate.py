@@ -62,7 +62,7 @@ class Repository(object):
 
 
     @classmethod
-    def create_new(cls, local_directory, remote_url, config_broker=ConfigBroker(join(expanduser("~"), ".foolscrate.conf"), join(expanduser("~"), ".foolscrate.conf.lock"))):
+    def create_new(cls, local_directory, remote_url, config_broker):
         cls._logger.info(
             "Will create new foolscrate-enabled repository in local directory. Remote %s should exist and be empty.",
             remote_url)
@@ -91,7 +91,7 @@ class Repository(object):
         return repo
 
     @classmethod
-    def connect_existing(cls, local_directory, remote_url, config_broker=ConfigBroker(join(expanduser("~"), ".foolscrate.conf"), join(expanduser("~"), ".foolscrate.conf.lock"))):
+    def connect_existing(cls, local_directory, remote_url, config_broker):
         cls._logger.info(
             "Will create new git repo in local directory and connect to remote existing foolscrate repository %s",
             remote_url)
@@ -106,7 +106,7 @@ class Repository(object):
 
         return cls._configure_repository(git, local_directory, config_broker)
 
-    def __init__(self, local_directory, sync_lock_path=None, config_broker=ConfigBroker(join(expanduser("~"), ".foolscrate.conf"), join(expanduser("~"), ".foolscrate.conf.lock"))):
+    def __init__(self, local_directory, config_broker, sync_lock_path=None):
 
         abs_local_directory = abspath(local_directory)
 
@@ -264,7 +264,7 @@ class SyncAll(object):
             shuffle(tracked)
             for localdir in tracked:
                 try:
-                    repo = Repository(localdir)
+                    repo = Repository(localdir, self._config_broker)
                     delay = uniform(self._SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MIN_SECONDS,
                                     self._SLEEP_BETWEEN_SYNC_ALL_TRACKED_ATTEMPTS_MAX_SECONDS)
                     sleep(delay)
